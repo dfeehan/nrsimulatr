@@ -3,9 +3,10 @@ Title: network reporting simulations
 Version: 0.0.1.900
 Authors@R: person("Dennis", "Feehan", email="dfeehan@princeton.edu",
                   role=c("aut", "cre"))
-Description: Utilities for drawing random networks, reporting networks,
+Description: Utilities for drawing random social networks, reporting networks,
     and network reporting data using different assumptions about the process
     that generates connections between the nodes. Useful for conducting simulation
     studies to learn about sampling properties of network reporting and other
     network sampling methods.
 License: MIT
+URL: http://github.com/dfeehan/nrsimulatr
