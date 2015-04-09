@@ -1,0 +1,235 @@
+---
+title: "Stochastic block model network reporting simulation"
+author: "Dennis Feehan"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{sbm-simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+
+
+```{r}
+library(igraph)
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+set.seed(12345)
+```
+
+Now set up the params for one random draw.
+
+```{r}
+num.sims <- 2
+
+## TODO - parameterize by avg degree w/in group or something?
+
+sim.params <- expand.grid(# size of total population, U
+                          N=10e2,
+                          #N=10e3,
+                          # frame population is half of total
+                          p.F=c(1),
+                          # hidden popn is 3 percent of total
+                          p.H=.5,
+                          # prob of edge between two nodes in the same group
+                          pi.within=1,
+                          # relative prob of edge between two nodes not in the same group
+                          rho=c(1),
+                          tau=c(.9))
+
+
+```
+
+Now draw the actual random graph.
+
+TODO - LEFT OFF HERE
+
+* converting sim code to package
+* I think this test file has slightly old version of code
+* code up sim using the package (specify version)
+* re-run sim to specify according to writeup, if necessary
+
+TODO - TO DEMONSTRATE
+
+* report.sbm.edges
+
+TODO - UNIT TESTS
+
+* report.sbm.edges (be sure to mention counter-intuitive in vs out arg)
+* reporting.estimates
+
+etc...
+
+```{r}
+this.g <- draw.4group.graph(sim.params)
+this.g.df <- get.data.frame(this.g, 'vertices')
+```
+
+Next, generate the reporting graph.
+
+```{r}
+this.r <- reporting.graph(this.g, 
+                          hidden.popn=c('FH', 'notFH'),
+                          frame.popn=c('FH', 'FnotH'))
+```
+
+Finally, produce estimates
+
+```{r}
+
+these.ests <- reporting.estimates(this.r, 
+                                  hidden.popn=c('FH', 'notFH'),
+                                  frame.popn=c('FH', 'FnotH'))
+
+```
+
+```{r}
+
+system.time(
+this.g <- draw.4group.graph(sim.params)
+)
+
+system.time(
+this.r <- reporting.graph(this.g, 
+                          hidden.popn=c('FH', 'notFH'),
+                          frame.popn=c('FH', 'FnotH'))
+)
+
+this.r.df <- get.data.frame(this.r, 'vertices')
+
+this.r.df %>% group_by(group) %>% summarise(diff=mean(d.degree-y.degree),d.bar=mean(d.degree))
+
+this.r.df %>% group_by(group) %>% summarise(v.bar=mean(v.degree))
+
+
+```
+
+## Code checks
+
+TODO - these should be made into unit tests...
+
+Here are a few internal consistency checks that I ran to be sure the
+simulation code is working.
+
+This should be TRUE:
+```{r}
+this.g.df <- get.data.frame(this.g, 'vertices')
+
+with(this.g.df, all(d.degree == d.FnotH + d.FH + d.notFnotH + d.notFH))
+with(this.g.df, all(d.degree == d.FnotH + d.FH + d.notFH))
+```
+
+The `diff` column of the dataframe produced here should all be zeroes.
+```{r}
+tmp1 <- this.g.df %>% select(starts_with("d."), -contains("degree")) %>% 
+  gather(group, edgecount) %>%
+  group_by(group) %>% summarise(edgetot = sum(edgecount)) %>%
+  mutate(group = str_sub(group, 3))
+tmp2 <- this.g.df %>% group_by(group) %>% summarise(d.tot=sum(d.degree), n=n())
+tmp <- tmp1 %>% join(tmp2) %>% mutate(diff = edgetot - d.tot)
+tmp
+```
+
+This should be TRUE
+```{r}
+sum(tmp$edgetot)==sum(tmp$d.tot)
+```
+
+The `diff` column of the dataframe produced here should all be zeroes.
+```{r}
+this.r.df <- get.data.frame(this.r, 'vertices')
+
+tmp1 <- this.r.df %>% select(starts_with("y."), -contains("degree")) %>%
+        gather(group, edgecount) %>%
+        group_by(group) %>% summarise(edgetot=sum(edgecount))  %>%
+        mutate(group = str_sub(group, 3))
+
+tmp2 <- this.r.df %>% group_by(group) %>% 
+        summarise(y.tot=sum(y.degree), n=n())
+tmp <- tmp1 %>% join(tmp2) %>% mutate(diff = edgetot - y.tot)
+tmp
+
+```
+
+TODO - check tau
+
+```{r}
+sim.params <- expand.grid(# size of total population, U
+                          N=10e1,
+                          #N=10e3,
+                          # frame population is half of total
+                          p.F=c(0.5),
+                          # hidden popn is 3 percent of total
+                          p.H=.5,
+                          # prob of edge between two nodes in the same group
+                          pi.within=1,
+                          # relative prob of edge between two nodes not in the same group
+                          rho=c(.5),
+                          tau=c(.5))
+
+
+set.seed(100)
+
+system.time(
+sim.graph.g <- draw.4group.graph(sim.params)
+)
+
+system.time(
+sim.graph.r <- reporting.graph(sim.graph.g, 
+                          hidden.popn=c('FH', 'notFH'),
+                          frame.popn=c('FH', 'FnotH'))
+)
+
+h.idx <- V(sim.graph.r)[group %in% c('FH', 'notFH')] 
+h1.idx <- V(sim.graph.r)[group %in% c('FH')] 
+h2.idx <- V(sim.graph.r)[group %in% c('notFH')] 
+
+f.idx <- V(sim.graph.r)[group %in% c('FH', 'FnotH')] 
+f1.idx <- V(sim.graph.r)[group %in% c('FH')] 
+f2.idx <- V(sim.graph.r)[group %in% c('FnotH')] 
+
+this.r.df <- get.data.frame(sim.graph.r, 'vertices')
+
+## the ratio here should be very close to tau
+this.r.df %>% filter(group %in% c('FH', 'FnotH')) %>%
+              summarise(y.F.H = sum(y.FH + y.notFH),
+                        d.F.H = sum(d.FH + d.notFH),
+                        ratio = y.F.H / d.F.H)
+
+# on the other hand, this ratio should always be 1, no matter what the value
+# of tau is, since reports from F about notH should not be affected
+this.r.df %>% filter(group %in% c('FH', 'FnotH')) %>%
+              summarise(y.F.notH = sum(y.FnotH + y.notFnotH),
+                        d.F.notH = sum(d.FnotH + d.notFnotH),
+                        ratio = y.F.notH / d.F.notH)
+
+```
+
+## Performance notes
+
+I wrote two versions of the code to draw a network from the
+stochastic blockmodel. The first was really slow; the second is
+still slow, but is probably fast enough to use here.
+
+```{r}
+## Performance notes below:
+
+# for N=1000, drawing one graph (first way) takes:
+#  user  system elapsed
+# 3.715   1.515   5.243
+  
+# for N=1000, drawing one graph (second / current way) takes:
+#  user  system elapsed
+# 0.425   0.062   0.506
+
+# system.time(g <- draw.sbm.graph(block.sizes, pref.matrix, block.names))
+
+# g.df <- get.data.frame(g, 'vertices')
+# all(g.df$degree == g.df$nothidden + g.df$hidden)
+
+```
+
