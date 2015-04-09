@@ -4,11 +4,14 @@
 \alias{draw.4group.graph}
 \title{draw a random graph from a stochastic blockmodel with four blocks}
 \usage{
-draw.4group.graph(sim.settings)
+draw.4group.graph(sim.settings, type = "simple")
 }
 \arguments{
 \item{sim.settings}{a list whose entries contain the parameter values
 which govern this random graph draw (see details)}
+
+\item{type}{either 'simple' or 'nested', depending on the type of inhomogenous
+mixing; see \code{pref.matrix.4group}}
 }
 \value{
 an igraph graph, drawn according to the
