@@ -93,7 +93,6 @@ pref.matrix.4group <- function(block.sizes, pi.within, rho, type,
     return(pref.matrix)
 }
 
-
 ###############################################################################
 #' draw a random graph from a stochastic blockmodel with four blocks
 #' 
@@ -150,7 +149,7 @@ draw.4group.graph <- function(sim.settings, type="simple") {
     # assume membership in F and H are independent
     N.FnotH <- floor(N * p.F * (1-p.H))
     N.notFnotH <- floor(N * (1-p.F) * (1-p.H))
-    N.notFH <- floor(N* (1-p.F) * p.H)
+    N.notFH <- floor(N * (1-p.F) * p.H)
     N.FH <- N - N.FnotH - N.notFnotH - N.notFH
 
     block.sizes <- c('FnotH' = N.FnotH,
@@ -269,7 +268,8 @@ reporting.estimates <- function(reporting.graph, hidden.popn, frame.popn) {
                            vbar.H.F = sum(in.F*(y.FH + y.notFH))/sum(in.H),
                            dbar.FH = sum(in.F*in.H*d.degree)/sum(in.F*in.H),
                            dbar.FnotH = sum(in.F*(1-in.H)*d.degree)/sum(in.F*(1-in.H)),
-                           dbar.notFnotH = sum((1-in.F)*(1-in.H)*d.degree)/sum((1-in.F)*(1-in.H)),
+                           dbar.notFnotH = sum((1-in.F)*(1-in.H)*d.degree)/
+                                           sum((1-in.F)*(1-in.H)),
                            dbar.notFH = sum((1-in.F)*in.H*d.degree)/sum((1-in.F)*in.H),
                            dbar = mean(d.degree)) %>%
                 ## compute the adjustment factors, as well as the basic
