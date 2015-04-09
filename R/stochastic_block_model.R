@@ -131,10 +131,12 @@ pref.matrix.4group <- function(block.sizes, pi.within, rho, type,
 #'
 #' @param sim.settings a list whose entries contain the parameter values
 #'        which govern this random graph draw (see details)
+#' @param type either 'simple' or 'nested', depending on the type of inhomogenous
+#'        mixing; see \code{pref.matrix.4group}
 #' @return an igraph graph, drawn according to the
 #'         settings passed in
 #' @export
-draw.4group.graph <- function(sim.settings) {
+draw.4group.graph <- function(sim.settings, type="simple") {
 
     # there are more sophisticated ways of doing this, but
     # this has the advantage of being more readable, and
@@ -156,18 +158,13 @@ draw.4group.graph <- function(sim.settings) {
                      'notFnotH' = N.notFnotH,
                      'notFH' = N.notFH)
 
-    # the group preference matrix has pi.within*rho in all of its off-diagonal entries,
-    # and pi.within on the diagonal
-    pref.matrix <- matrix(pi.within*rho, 
-                          nrow=length(block.sizes), ncol=length(block.sizes))
-    diag(pref.matrix) <- pi.within
+    pref.matrix <- pref.matrix.4group(block.sizes, pi.within, rho, type,
+                                      inF=c(1,1,0,0), inH=c(0,1,0,1))
 
     this.g <- draw.sbm.graph(block.sizes, pref.matrix)
     this.settings <- sim.settings
     this.res <- set.graph.attribute(this.g, "sim.settings", this.settings)
 
-    colnames(pref.matrix) <- names(block.sizes)
-    rownames(pref.matrix) <- names(block.sizes)
     this.res <- set.graph.attribute(this.res, "pref.matrix", pref.matrix)
 
     V(this.res)$id <- 1:vcount(this.res)
