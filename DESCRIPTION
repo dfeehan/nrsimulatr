@@ -10,3 +10,6 @@ Description: Utilities for drawing random social networks, reporting networks,
     network sampling methods.
 License: MIT
 URL: http://github.com/dfeehan/nrsimulatr
+Suggests: knitr,
+    testthat
+VignetteBuilder: knitr
