@@ -4,4 +4,12 @@
 \name{nrsimulatr}
 \alias{nrsimulatr}
 \alias{nrsimulatr-package}
+\title{network reporting simulations}
+\description{
+Utilities for drawing random social networks, reporting networks,
+and network reporting data using different assumptions about the process
+that generates connections between the nodes. Useful for conducting simulation
+studies to learn about sampling properties of network reporting and other
+network sampling methods.
+}
 
