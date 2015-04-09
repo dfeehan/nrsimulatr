@@ -13,6 +13,7 @@
 # files ending in -dev.r are used for developing / testing new code
 # and don't need to end up in repo
 *-dev.r
+*-dev.Rmd
 .DS_Store
 # R check directory
 ..Rcheck/
