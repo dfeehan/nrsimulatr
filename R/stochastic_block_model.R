@@ -34,9 +34,6 @@ draw.sbm.graph <- function(block.sizes, pref.matrix, block.names=NULL) {
     # label vertices by group membership
     g <- label.vertices(g, block.sizes, block.names)
 
-    # report the graph edges
-    g <- report.sbm.edges(g, 'd.')
-
     return(g)
 
 }
@@ -161,12 +158,18 @@ draw.4group.graph <- function(sim.settings, type="simple") {
                                       inF=c(1,1,0,0), inH=c(0,1,0,1))
 
     this.g <- draw.sbm.graph(block.sizes, pref.matrix)
+    
     this.settings <- sim.settings
     this.res <- set.graph.attribute(this.g, "sim.settings", this.settings)
 
     this.res <- set.graph.attribute(this.res, "pref.matrix", pref.matrix)
 
+    this.res <- set.graph.attribute(this.res, "block.sizes", block.sizes)
+
     V(this.res)$id <- 1:vcount(this.res)
+
+    # report the graph edges
+    this.res <- report.sbm.edges(this.res, 'd.')
 
     return(this.res)
 
@@ -209,14 +212,19 @@ report.sbm.edges <- function(g, prefix='d.', mode="all") {
 
     # and compute a matrix of indicator variables with the group membership of each vertex
     gp.lookup <- get.data.frame(g, 'vertices')
-    block.names <- unique(paste(gp.lookup$group))
+
+    #block.names <- unique(paste(gp.lookup$group))
+    block.names <- names(graph.attributes(g)$block.sizes)
+
+    gp.lookup$group <- factor(gp.lookup$group, levels=block.names)
 
     gp.lookup$id <- 1:nrow(gp.lookup)
 
     # (make this wide, so that we can just sum columns to get totals)
     gp.lookup <- gp.lookup %>% 
+                 select(id, group) %>%
                  mutate(present=1) %>% 
-                 spread(group, present, fill=0) %>% 
+                 spread(group, present, fill=0, drop=FALSE) %>% 
                  arrange(id)
 
     gp.lookup <- as.matrix(gp.lookup[,block.names])
