@@ -1,0 +1,312 @@
+---
+title: "Explore expected values for stochastic block-model simulations"
+author: ""
+#author: "Dennis Feehan"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{sbm-simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r, echo=FALSE, message=FALSE}
+library(igraph)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(devtools)
+load_all()
+
+knitr::opts_chunk$set(echo=FALSE, message=FALSE)
+
+```
+
+### Overview
+
+This file shows the (analytically-derived) expected values for several
+quantities under the stochastic block model simulation design. There are
+two variants of the design: simple and nested. These can be distinguished
+by the mixing matrices. The simple mixing matrix contains only $\zeta$ and
+$\rho\cdot\zeta$, while the nested mixing matrix also has $\rho^2\cdot\zeta$.
+
+#### Simple mixing matrix:
+$$
+\begin{matrix}
+    & ~F~H           & ~F \lnot H     & \lnot F ~H     & \lnot F \lnot H \\
+    ~F~H            & \zeta           & \rho\cdot\zeta  & \rho\cdot\zeta  & \rho\cdot\zeta \\
+    ~F \lnot H      & \rho\cdot\zeta  & \zeta           & \rho\cdot\zeta  & \rho\cdot\zeta \\
+    \lnot F ~H      & \rho\cdot\zeta  & \rho\cdot\zeta  & \zeta           & \rho\cdot\zeta \\
+    \lnot F \lnot H & \rho\cdot\zeta  & \rho\cdot\zeta  & \rho\cdot\zeta  & \zeta
+\end{matrix}
+$$
+
+#### Nested mixing matrix:
+$$
+\begin{matrix}
+    & ~F~H           & ~F \lnot H     & \lnot F ~H     & \lnot F \lnot H \\
+    ~F~H            & \zeta           & \rho\cdot\zeta  & \rho\cdot\zeta  & \rho^2\cdot\zeta \\
+    ~F \lnot H      & \rho\cdot\zeta  & \zeta           & \rho^2\cdot\zeta& \rho\cdot\zeta \\
+    \lnot F ~H      & \rho\cdot\zeta  & \rho^2\cdot\zeta& \zeta           & \rho\cdot\zeta \\
+    \lnot F \lnot H & \rho^2\cdot\zeta& \rho\cdot\zeta  & \rho\cdot\zeta  & \zeta
+\end{matrix}
+$$
+
+Next, we will look at the expected values for several important quantities under both versions
+of the stochastic block-model: the nested and the simple versions.
+
+```{r}
+this.inF <- c(1,1,0,0)
+this.inH <- c(0,1,0,1)
+this.inU <- c(1,1,1,1)
+
+tmp.params <- list(N=100,
+                   p.F=.5,
+                   p.H=1,
+                   pi.within=1,
+                   rho=1,
+                   tau=1)
+
+tmp.ev <- ev.4group(tmp.params,
+                    inF=this.inF,
+                    inH=this.inH,
+                    inU=this.inU)
+
+tmp.block.sizes <- block.sizes.4group(tmp.params)
+
+this.pref.matrix <- pref.matrix.4group(tmp.block.sizes,
+                                       tmp.params$pi.within,
+                                       tmp.params$rho,
+                                       type="simple",
+                                       inF=this.inF,
+                                       inH=this.inH)
+
+
+```
+
+```{r}
+
+param.vals <- expand.grid(# size of total population, U
+                          N=10e3,
+                          #N=10e3,
+                          # frame population is half of total
+                          #p.F=c(.1,.5,1),
+                          p.F=seq(from=.1, to=1, by=.1),
+                          # hidden popn is 3 percent of total
+                          p.H=.03,
+                          # prob of edge between two nodes in the same group
+                          pi.within=.05,
+                          # relative prob of edge between two nodes not in the same group
+                          #rho=c(.1, .5, 1),
+                          rho=seq(from=.1, to=1, by=.1),
+                          #tau=c(.1, .5, 1))
+                          tau=seq(from=.1, to=1, by=.1))
+
+all.param.list <- split(param.vals, rownames(param.vals))
+
+```
+
+```{r}
+this.inF <- c(1,1,0,0)
+this.inH <- c(0,1,0,1)
+this.inU <- c(1,1,1,1)
+
+res.nested <- ldply(all.param.list,
+                    ev.4group, type="nested",
+                    inF=this.inF,
+                    inH=this.inH,
+                    inU=this.inU)
+res.nested$type <- "nested"
+
+res.simple <- ldply(all.param.list,
+                    ev.4group, type="simple",
+                    inF=this.inF,
+                    inH=this.inH,
+                    inU=this.inU)
+res.simple$type <- "simple"
+
+res <- rbind(res.nested, res.simple)
+
+#res.nsum <- res %>% mutate(estimate=N*p.H*total, 
+res.nsum <- res %>% mutate(estimate=tau*d.F.H / dbar.U.F, 
+                           estimator="nsum.est")
+
+#res.gnsum <- res %>% mutate(estimate=N*p.H, 
+res.gnsum <- res %>% mutate(estimate=tau*d.F.H / (tau * dbar.H.F),
+                            estimator="generalized.est")
+
+res.both <- rbind(res.nsum, res.gnsum)
+res.both <- res.both %>% mutate(N.H = N*p.H)
+
+```
+
+```{r}
+
+label_equals <- function(variable, value) {
+
+    ## turn, eg p.F into p[F]
+    variable <- str_replace(variable, "\\.(\\w+)", "[\\1]")
+
+    #llply(as.character(variable), function(x) parse(text=paste(x, "==", v))
+    #llply(as.character(variable), 
+    llply(1:length(value),
+          function(idx) {
+              x <- as.character(variable)
+              v <- as.character(value[idx])
+              parse(text=paste(x, "==", v))
+          })
+}
+
+## NOTE: this function comes from the R Cookbook site
+##
+## http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
+##
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+    require(grid)
+
+    # Make a list from the ... arguments and plotlist
+    plots <- c(list(...), plotlist)
+
+    numPlots = length(plots)
+
+    # If layout is NULL, then use 'cols' to determine layout
+    if (is.null(layout)) {
+        # Make the panel
+        # ncol: Number of columns of plots
+        # nrow: Number of rows needed, calculated from # of cols
+        layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                         ncol = cols, nrow = ceiling(numPlots/cols))
+    }
+
+    if (numPlots==1) {
+        print(plots[[1]])
+
+    } else {
+        # Set up the page
+        grid.newpage()
+        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+        # Make each plot, in the correct location
+        for (i in 1:numPlots) {
+            # Get the i,j matrix positions of the regions that contain this subplot
+            matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+            print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                            layout.pos.col = matchidx$col))
+        }
+    }
+}
+```
+
+```{r}
+res.vals <- c(.1, .5, 1)
+toplot<- res.both %>% 
+         filter(tau %in% res.vals &
+                #rho %in% res.vals &
+                p.F %in% res.vals)
+
+```
+
+### Expected values for adjustment factors
+
+```{r, fig.width=14, fig.height=6}
+
+phi.byrho.lim <- ggplot(toplot %>%
+                             mutate(estimator=ifelse(estimator=="generalized.est",
+                                                     "generalized scale-up",
+                                                     "basic scale-up"))) +
+                  geom_line(aes(x=rho, y=phi.F, color=type, linetype=type)) +
+                  geom_hline(aes(yintercept=1), linetype=1, color="gray") +
+                  facet_grid(tau ~ p.F,
+                             labeller = label_equals) +
+                  xlab(bquote(amount~of~inhomogenous~mixing~(rho))) +
+                  theme(legend.position="bottom",
+                        axis.text.x=element_text(angle=90, vjust=0.5),
+                        panel.border=element_rect(size=.5, fill=NA),
+                        panel.background=element_blank(),
+                        panel.grid.major=element_blank(),
+                        panel.grid.minor=element_blank())
+
+delta.byrho.lim <- ggplot(toplot %>%
+                             mutate(estimator=ifelse(estimator=="generalized.est",
+                                                     "generalized scale-up",
+                                                     "basic scale-up"))) +
+                  geom_line(aes(x=rho, y=delta.F, color=type, linetype=type)) +
+                  geom_hline(aes(yintercept=1), linetype=1, color="gray") +
+                  facet_grid(tau ~ p.F,
+                             labeller = label_equals) +
+                  xlab(bquote(amount~of~inhomogenous~mixing~(rho))) +
+                  theme(legend.position="bottom",
+                        axis.text.x=element_text(angle=90, vjust=0.5),
+                        panel.border=element_rect(size=.5, fill=NA),
+                        panel.background=element_blank(),
+                        panel.grid.major=element_blank(),
+                        panel.grid.minor=element_blank())
+
+phidelta.byrho.lim <- ggplot(toplot %>%
+                             mutate(estimator=ifelse(estimator=="generalized.est",
+                                                     "generalized scale-up",
+                                                     "basic scale-up"))) +
+                  geom_line(aes(x=rho, y=deltaXphi.F, color=type, linetype=type)) +
+                  geom_hline(aes(yintercept=1), linetype=1, color="gray") +
+                  facet_grid(tau ~ p.F,
+                             labeller = label_equals) +
+                  xlab(bquote(amount~of~inhomogenous~mixing~(rho))) +
+                  theme(legend.position="bottom",
+                        axis.text.x=element_text(angle=90, vjust=0.5),
+                        panel.border=element_rect(size=.5, fill=NA),
+                        panel.background=element_blank(),
+                        panel.grid.major=element_blank(),
+                        panel.grid.minor=element_blank())
+
+multiplot(phi.byrho.lim, delta.byrho.lim, phidelta.byrho.lim, cols=3)
+```
+
+### Basic scale-up estimator expected values 
+
+```{r, fig.height=6, fig.width=6}
+
+ev.byrho.lim <- ggplot(toplot %>%
+                       filter(estimator != "generalized.est") %>%
+                       mutate(estimator=ifelse(estimator=="generalized.est",
+                                                          "generalized scale-up",
+                                                          "basic scale-up"))) +
+                  geom_line(aes(x=rho, y=estimate, color=type, linetype=type)) +
+                  geom_hline(aes(yintercept=N.H), linetype=1, color="gray") +
+                  scale_shape_manual(values=c("generalized scale-up"=4,
+                                              "basic scale-up"=3)) + 
+                  facet_grid(tau ~ p.F,
+                             labeller = label_equals) +
+                  xlab(bquote(amount~of~inhomogenous~mixing~(rho))) +
+                  theme(legend.position="bottom",
+                        axis.text.x=element_text(angle=90, vjust=0.5),
+                        panel.border=element_rect(size=.5, fill=NA),
+                        panel.background=element_blank(),
+                        panel.grid.major=element_blank(),
+                        panel.grid.minor=element_blank())
+
+ev.byrho.lim
+
+```
+
+
+```{r}
+
+##ggsave(file=file.path(out.dir, "sim-expectedvalue-byrho-lim.pdf"),
+##       plot=ev.byrho.lim,
+##       width=5, height=5.5)
+                
+```
+
