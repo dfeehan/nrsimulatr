@@ -2,7 +2,7 @@
 % Please edit documentation in R/stochastic_block_model.R
 \name{expected.edgecount.4group}
 \alias{expected.edgecount.4group}
-\title{compute the expected number of edges between two groups under 4-block model}
+\title{compute the expected number of connections (degree) between two groups under 4-block model}
 \usage{
 expected.edgecount.4group(pref.matrix, block.sizes, first.group, second.group)
 }
