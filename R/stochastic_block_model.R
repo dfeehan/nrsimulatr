@@ -91,6 +91,44 @@ pref.matrix.4group <- function(block.sizes, pi.within, rho, type,
 }
 
 ###############################################################################
+#' given parameter values, compute block sizes
+#' 
+#' given the parameter values N, p.H, and p.F, compute the number of vertices
+#' in each of the four blocks: FnotH, FH, notFnotH, notFH
+#' 
+#'
+#' @param sim.settings a list whose entries contain the parameter values
+#'        which govern this random graph draw (see details)
+#' @return a named vector; names are block names, values are block sizes
+#' @export
+block.sizes.4group <- function(sim.settings) {
+
+    # there are more sophisticated ways of doing this, but
+    # this has the advantage of being more readable, and
+    # causing errors if parameters don't exist
+    N <- sim.settings[['N']]
+    p.F <- sim.settings[['p.F']]
+    p.H <- sim.settings[['p.H']]
+    pi.within <- sim.settings[['pi.within']]
+    rho <- sim.settings[['rho']]
+
+    # assume membership in F and H are independent
+    N.FnotH <- floor(N * p.F * (1-p.H))
+    N.notFnotH <- floor(N * (1-p.F) * (1-p.H))
+    N.notFH <- floor(N * (1-p.F) * p.H)
+    N.FH <- N - N.FnotH - N.notFnotH - N.notFH
+
+    block.sizes <- c('FnotH' = N.FnotH,
+                     'FH' = N.FH,
+                     'notFnotH' = N.notFnotH,
+                     'notFH' = N.notFH)
+
+    return(block.sizes)
+
+}
+
+
+###############################################################################
 #' draw a random graph from a stochastic blockmodel with four blocks
 #' 
 #' Draw a random graph from a stochastic blockmodel where the groups are
@@ -137,24 +175,13 @@ draw.4group.graph <- function(sim.settings, type="simple") {
     # there are more sophisticated ways of doing this, but
     # this has the advantage of being more readable, and
     # causing errors if parameters don't exist
-    N <- sim.settings[['N']]
-    p.F <- sim.settings[['p.F']]
-    p.H <- sim.settings[['p.H']]
     pi.within <- sim.settings[['pi.within']]
     rho <- sim.settings[['rho']]
 
-    # assume membership in F and H are independent
-    N.FnotH <- floor(N * p.F * (1-p.H))
-    N.notFnotH <- floor(N * (1-p.F) * (1-p.H))
-    N.notFH <- floor(N * (1-p.F) * p.H)
-    N.FH <- N - N.FnotH - N.notFnotH - N.notFH
+    block.sizes <- block.sizes.4group(sim.settings)
 
-    block.sizes <- c('FnotH' = N.FnotH,
-                     'FH' = N.FH,
-                     'notFnotH' = N.notFnotH,
-                     'notFH' = N.notFH)
-
-    pref.matrix <- pref.matrix.4group(block.sizes, pi.within, rho, type,
+    pref.matrix <- pref.matrix.4group(block.sizes, 
+                                      pi.within, rho, type,
                                       inF=c(1,1,0,0), inH=c(0,1,0,1))
 
     this.g <- draw.sbm.graph(block.sizes, pref.matrix)
@@ -297,7 +324,7 @@ reporting.estimates <- function(reporting.graph, hidden.popn, frame.popn) {
 }
 
 #####################################################################################
-#' compute the expected number of edges between two groups under 4-block model
+#' compute the expected number of connections (degree) between two groups under 4-block model
 #' 
 #' for groups A and B, this returns \eqn{d_{A,B} = d_{B,A}}. 
 #'
@@ -317,16 +344,85 @@ expected.edgecount.4group <- function(pref.matrix,
     both.groups <- (first.group * second.group * block.sizes)
 
     
-    return(as.numeric(((t(fg) %*% pref.matrix %*% sg) - 
-                        ## need to adjust for groups that are same in
-                        ## sending and receiving sets; they should
-                        ## contribute (N*(N-1)/2)*M[i,i] to the overall sum,
-                        ## and the quadratic form adds (N^2)*M[i,i]
-                        ## so, we subtract (N^2)*M[i,i]/2 and also
-                        ## N*M[i,i]/2 to make the sum correct
-                        t(both.groups^2)%*%diag(pref.matrix)/2 -
-                        t(both.groups)%*%diag(pref.matrix)/2)))
+    return(as.numeric(t(fg) %*% pref.matrix %*% sg -
+                      t(both.groups)%*%diag(pref.matrix)))
+
+}
 
 
+#####################################################################################
+#' compute the expected value for various quantities under four-group model
+#' 
+#' 
+#'
+#' @param these.params list containing the simulation parameters
+#' @param type either "nested" or "simple"
+#' @param inF vector with 1s for blocks in F, 0 otherwise
+#' @param inH vector with 1s for blocks in H, 0 otherwise
+#' @param inU vector with 1s for blocks in U, 0 otherwise
+#' @return the expected value of various quantities
+#' @export
+ev.4group <- function(these.params, 
+                      type="nested",
+                      inF=c(1,1,0,0),
+                      inH=c(0,1,0,1),
+                      inU=c(1,1,1,1)) {
+
+    these.block.sizes <- block.sizes.4group(these.params)
+
+    this.pref.matrix <- pref.matrix.4group(these.block.sizes,
+                                           these.params$pi.within,
+                                           these.params$rho,
+                                           type=type,
+                                           inF=this.inF,
+                                           inH=this.inH)
+
+    res <- these.params
+
+    res$dbar.F.F <- ev.4group.mean(this.pref.matrix, these.block.sizes,
+                                   inF, inF)
+    res$dbar.notF.F <- ev.4group.mean(this.pref.matrix, these.block.sizes,
+                                   1-inF, inF)
+    res$d.F.H <- ev.4group.tot(this.pref.matrix, these.block.sizes,
+                               inF, inH)
+    res$dbar.U.F <- ev.4group.mean(this.pref.matrix, these.block.sizes,
+                                   inU, inF)
+    res$dbar.F.U <- ev.4group.mean(this.pref.matrix, these.block.sizes,
+                                   inF, inU)
+    res$dbar.U.U <- ev.4group.mean(this.pref.matrix, these.block.sizes,
+                                   inU, inU)
+    res$dbar.H.U <- ev.4group.mean(this.pref.matrix, these.block.sizes,
+                                   inH, inU)
+    res$dbar.H.F <- ev.4group.mean(this.pref.matrix, these.block.sizes,
+                                   inH, inF)
+
+    res$phi.F <- res$dbar.F.F / res$dbar.U.F
+    res$delta.F <- res$dbar.H.F / res$dbar.F.F
+    res$deltaXphi.F <- res$phi.F * res$delta.F
+    res$total <- res$phi.F * res$delta.F * res$tau
+
+    return(data.frame(res))
+
+}
+
+#####################################################################################
+#' compute the expected value for various quantities under four-group model
+#' 
+#' for groups A and B, these functions return \eqn{d_{A,B}} and \eqn{\bar{d}_{A,B}}
+#'
+#' @param pm the preference matrix
+#' @param bs the block sizes
+#' @param fg 0/1 indicator vector for blocks in the first index (A in the description above)
+#' @param sg 0/1 indicator vector for blocks in the second index (B in the description above)
+#' @return the expected value of the mean or the total number of connections
+#'         from the first group to the second. Means are taken with respect to the members
+#'         of the first index
+ev.4group.tot <- function(pm, bs, fg, sg) {
+    return(expected.edgecount.4group(pm, bs, fg, sg))
+}
+
+#' @rdname ev.4group.tot
+ev.4group.mean <- function(pm, bs, fg, sg) {
+    return(expected.edgecount.4group(pm, bs, fg, sg)/sum(bs*fg))
 }
 
