@@ -24,7 +24,7 @@ knitr::opts_chunk$set(echo=FALSE, message=FALSE)
 
 ```
 
-### Overview
+## Overview
 
 This file shows the (analytically-derived) expected values for several
 quantities under the stochastic block model simulation design. There are
@@ -53,6 +53,61 @@ $$
     \lnot F \lnot H & \rho^2\cdot\zeta& \rho\cdot\zeta  & \rho\cdot\zeta  & \zeta
 \end{matrix}
 $$
+
+### Analytical derivations
+
+Write the number of vertices in each of the four blocks as
+a vector, $\mathbf{n}$.
+
+Suppose we wish to count the number of expected connections from
+a set $A$ to another set $B$, with both $A$ and $B$ built up from
+one or more of the four blocks. Let $\mathbf{a}$ be the 0/1 vector
+that indicates which blocks $A$ contains, and $\mathbf{b}$ be the 0/1
+vector that indicates which blocks $B$ contains. The size of A
+is then $N_A = \mathbf{a}^T \mathbf{n}$.
+
+Let $\mathbf{a}_N = \mathbf{a} * \mathbf{n}$, where $*$
+denotes element-wise multiplication. Then
+
+$$
+\begin{equation}
+d_{A,B} = \mathbf{a}_N^T ~M~ \mathbf{b}_N - 
+          (\mathbf{a} * \mathbf{b} * \mathbf{n})^T \text{diag}(M).
+\end{equation}
+$$
+
+To understand this expression, note that the number of edges
+between two distinct blocks $i$ and $j$ will be
+$N_i~N_j~M_{ij}$. Since we do not permit self-loops, 
+the number of edges from one block to itself
+will be $N_i~(N_i - 1)~M_{ii}$.  The expression
+
+$$
+\begin{equation}
+\mathbf{a}_N^T~M~\mathbf{b}_N = \sum_{i \in b(A)} \sum_{j \in b(B)} N_i~N_j~M_{ij}
+\end{equation}
+$$
+where $b(A)$ and $b(B)$ are the sets of blocks consisting of $A$ and $B$ is
+almost what we want. The problem is that each block $i$ in both $b(A)$ and
+$b(B)$ is sending edges to itself. In the equation above, it contributes
+$N_i^2~M_{i,i}$ instead of $N_i~(N_i - 1)~M_{i,i}$. So instead of the equation
+above, we actually want
+
+$$
+\begin{equation}
+d_{A, B} = \sum_{i \in b(A)} \sum_{j \in b(B)} N_i~N_j~M_{ij} -
+   \sum_{i \in b(A) \cap b(B)} N_i~M_{i,i},
+\end{equation}
+$$
+
+In this equation, the subtracted term accounts for the difference between
+$N_i^2$ and $N_i~(N_i - 1)$.
+
+### TODO - also show expression for variance of expected values
+
+
+
+## Illustration
 
 Next, we will look at the expected values for several important quantities under both versions
 of the stochastic block-model: the nested and the simple versions.
