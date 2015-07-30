@@ -539,7 +539,7 @@ report_edges.sbm <- function(g, prefix='d.', mode="all") {
 #'        this should be a vector that is the same length as the number of rows in rg.dat
 #' @return a data frame with estimates and several related quantities
 #' @export
-sbm_estimates <- function(data, weights=data[,'sampling.weight']) {
+sbm_census_quantities <- function(data, weights=data[,'sampling.weight']) {
 
     rg.dat <- data
     rg.dat$.weights <- weights
@@ -565,12 +565,13 @@ sbm_estimates <- function(data, weights=data[,'sampling.weight']) {
                 mutate(phi.F = dbar.F.F / dbar.U.F,
                        delta.F = dbar.H.F / dbar.F.F,
                        tau.F = vbar.H.F / dbar.H.F,
-                       basic.est = tot.y / dbar.U.F,
-                       generalized.est = tot.y / vbar.H.F,
+                       census.basic.est = tot.y / dbar.U.F,
+                       census.adapted.est = tot.y / dbar.F.F,
+                       census.generalized.est = tot.y / vbar.H.F,
                        ## compute the bias in the basic estimator
-                       basic.bias = basic.est - true.N.H,
+                       census.basic.bias = census.basic.est - true.N.H,
                        ## and double check that our identity works
-                       id.check = basic.est * (1/phi.F) * (1/delta.F) * (1/tau.F))
+                       id.check = census.basic.est * (1/phi.F) * (1/delta.F) * (1/tau.F))
 
     return(nsum.ests)
 
