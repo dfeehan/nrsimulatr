@@ -59,6 +59,7 @@ reporting_graph.imperfect_reporting <- function(reporting.params, sim.graph) {
 
     rep.graph <- as.directed(sim.graph, mode='mutual')
 
+
     # figure out which vertices are in the hidden popn
     h.idx <- V(rep.graph)[in.H == 1] 
     f.idx <- V(rep.graph)[in.F == 1] 
@@ -76,6 +77,8 @@ reporting_graph.imperfect_reporting <- function(reporting.params, sim.graph) {
     }
 
     # TODO - implement eta
+
+    class(rep.graph) <- c("igraph", class(sim.graph))
 
     ## NB: BE CAREFUL HERE:
     ## counter-intuitively, for out-reports we want to use mode='in'
