@@ -1,6 +1,6 @@
 Package: nrsimulatr
 Title: network reporting simulations
-Version: 0.0.1.900
+Version: 0.0.2.900
 Authors@R: person("Dennis", "Feehan", email="dfeehan@princeton.edu",
                   role=c("aut", "cre"))
 Description: Utilities for drawing random social networks, reporting networks,
