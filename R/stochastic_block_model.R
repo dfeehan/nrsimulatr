@@ -1,24 +1,227 @@
+###############################################################################
+#' create a set of simulation parameters for the stochastic block model
+#' 
+#' @param params the simulation parameters
+#' @param type currently, this can be one of '4group_1param_simple', '4group_1param_nested', or '4group_2param'; see the vignette for more info
+#' @return an object with the simulation parameters
+#' @export
+sbm_params <- function(params, type) {
+    
+    # TODO - eventually, check that the params are all there?
+
+    class(params) <- c(type, "sbm_4group", "sbm")
+    block.sizes <- sbm_block_sizes(params)
+    params <- c(params, block.sizes)
+
+    class(params) <- c(type, "sbm_4group", "sbm")
+    pref.matrix <- sbm_pref_matrix(params)
+    params$pref.matrix <- pref.matrix
+
+    return(params)
+}
 
 ###############################################################################
-#' draw a random graph from a stochastic blockmodel and label the vertices
+#' given parameter values for a stochastic block model, compute block sizes (generic)
+#' 
+#' given the parameter values of a stochastic block model, return a named
+#' list of the block sizes
+#'
+#' @param params a list whose entries contain the parameter values
+#'        which govern this random graph draw (see details)
+#' @return a named vector; names are block names, values are block sizes
+#' @export
+sbm_block_sizes <- function(params) {
+    UseMethod("sbm_block_sizes")
+}
+
+###############################################################################
+#' given parameter values, compute block sizes
+#' 
+#' given the parameter values N, p.H, and p.F, compute the number of vertices
+#' in each of the four blocks: FnotH, FH, notFnotH, notFH
+#'
+#' @param params a list whose entries contain the parameter values
+#'        which govern this random graph draw (see details)
+#' @return a list; block.sizes has a vector whose names are block names, values are block sizes;
+#'         gps.in.F is a vector with the names of groups whose members are in F; and
+#'         gps.in.H is a vector with the names of groups whose members are in H
+#' @export
+sbm_block_sizes.sbm_4group <- function(params) {
+
+    # there are more sophisticated ways of doing this, but
+    # this has the advantage of being more readable, and
+    # causing errors if parameters don't exist
+    N <- params[['N']]
+    p.F <- params[['p.F']]
+    p.H <- params[['p.H']]
+    pi.within <- params[['pi.within']]
+    rho <- params[['rho']]
+
+    # assume membership in F and H are independent
+    N.FnotH <- floor(N * p.F * (1-p.H))
+    N.notFnotH <- floor(N * (1-p.F) * (1-p.H))
+    N.notFH <- floor(N * (1-p.F) * p.H)
+    N.FH <- N - N.FnotH - N.notFnotH - N.notFH
+
+    block.sizes <- c('FnotH' = N.FnotH,
+                     'FH' = N.FH,
+                     'notFnotH' = N.notFnotH,
+                     'notFH' = N.notFH)
+
+    # get the name of the groups in F
+    gps.in.F <- c('FnotH', 'FH')
+
+    # get the name of the groups in H
+    gps.in.H <- c('FH', 'notFH')
+
+    return(list(block.sizes=block.sizes,
+                gps.in.F=gps.in.F,
+                gps.in.H=gps.in.H))
+
+}
+
+#####################################################################################
+#' construct a preference matrix for a stochastic block model
+#' 
+#' @description
+#' TODO
+#'
+#' @param params the parameters specific to this type of model
+#' @return a preference matrix
+sbm_pref_matrix <- function(params) {
+    UseMethod("sbm_pref_matrix")
+}
+
+#####################################################################################
+#' construct a 4-block preference matrix based on two independent categories, simple
+#' 
+#' @description
+#' TODO
+#'
+#' @param list of parameters, including block.sizes, pi.within and rho
+#' @return a 4x4 preference matrix
+sbm_pref_matrix.4group_1param_simple <- function(params) {
+
+    pi.within <- params$pi.within
+    rho <- params$rho
+    block.sizes <- params$block.sizes
+
+    pref.matrix <- matrix(pi.within*rho, 
+                          nrow=length(block.sizes), ncol=length(block.sizes))
+    diag(pref.matrix) <- pi.within
+
+    colnames(pref.matrix) <- names(block.sizes)
+    rownames(pref.matrix) <- names(block.sizes)
+
+    return(pref.matrix)
+}
+
+#####################################################################################
+#' construct a 4-block preference matrix based on two independent categories, nested
+#' 
+#' @description
+#' TODO
+#'
+#' @param list of parameters, including block.sizes, pi.within, rho, gps.in.F, and gps.in.H
+#' @return a 4x4 preference matrix
+sbm_pref_matrix.4group_1param_nested <- function(params) {
+
+    pi.within <- params$pi.within
+    block.sizes <- params$block.sizes
+    rho <- params$rho
+
+    gp.in.F <- as.numeric(names(block.sizes) %in% params$gps.in.F)
+    gp.in.H <- as.numeric(names(block.sizes) %in% params$gps.in.H)
+
+    # ties between F and not F are either from F to not F or from not F to F:
+    Fmask <- (gp.in.F %*% t(1-gp.in.F)) + ((1-gp.in.F) %*% t(gp.in.F))
+    Fmask <- 1 - Fmask * (1 - rho)
+
+    # ties between H and not H are either from H to not H or from not H to H:
+    Hmask <- (gp.in.H %*% t(1-gp.in.H)) + ((1-gp.in.H) %*% t(gp.in.H))
+    Hmask <- 1 - Hmask * (1 - rho)
+
+    # first make a matrix of the baseline prob of w/in group edge
+    pref.matrix <- matrix(pi.within, nrow=length(block.sizes), ncol=length(block.sizes))
+    # then apply the two masks which change probabilities of edges 
+    # between F / not F and H / not H
+    # (assuming these are independent)
+    pref.matrix <- pref.matrix * Hmask * Fmask
+
+    colnames(pref.matrix) <- names(block.sizes)
+    rownames(pref.matrix) <- names(block.sizes)
+
+    return(pref.matrix)
+}
+
+#####################################################################################
+#' construct a 4-block preference matrix based on two independent categories,
+#' and two independent interaction parameters
+#' 
+#' @description
+#' TODO
+#'
+#' @param list of parameters, including block.sizes, pi.within, rho, xi, gps.in.F, and gps.in.H
+#' @return a 4x4 preference matrix
+sbm_pref_matrix.4group_2param <- function(params) {
+
+    pi.within <- params$pi.within
+    block.sizes <- params$block.sizes
+    # rho is the penalty for prob of edge between F vs not F
+    rho <- params$rho
+    # xi is the penalty for prob of edge between H vs not H
+    xi <- params$xi
+
+    gp.in.F <- as.numeric(names(block.sizes) %in% params$gps.in.F)
+    gp.in.H <- as.numeric(names(block.sizes) %in% params$gps.in.H)
+
+    # ties between F and not F are either from F to not F or from not F to F:
+    Fmask <- (gp.in.F %*% t(1-gp.in.F)) + ((1-gp.in.F) %*% t(gp.in.F))
+    Fmask <- 1 - Fmask * (1 - xi)
+
+    # ties between H and not H are either from H to not H or from not H to H:
+    Hmask <- (gp.in.H %*% t(1-gp.in.H)) + ((1-gp.in.H) %*% t(gp.in.H))
+    Hmask <- 1 - Hmask * (1 - rho)
+
+    # first make a matrix of the baseline prob of w/in group edge
+    pref.matrix <- matrix(pi.within, nrow=length(block.sizes), ncol=length(block.sizes))
+    # then apply the two masks which change probabilities of edges 
+    # between F / not F and H / not H
+    # (assuming these are independent)
+    pref.matrix <- pref.matrix * Hmask * Fmask
+
+    colnames(pref.matrix) <- names(block.sizes)
+    rownames(pref.matrix) <- names(block.sizes)
+
+    return(pref.matrix)
+}
+
+###############################################################################
+#' draw a random graph from a 4group_oneparam_simple stochastic blockmodel
 #' 
 #' Draw a random graph from a stochastic blockmodel using a k-vector
 #' of block sizes and a k x k preference matrix
+#'
+#' This routine is agnostic about the algorithm that was used to produce
+#' the preference matrix and the block sizes, so it could potentially be
+#' used with a lot of different models.
 #'
 #' The \code{igraph} object that gets returned is a graph drawn from
 #' the stochastic block-model. The vertices each have a 'group' attribute
 #' containing the name of the block they have been assigned to. These block
 #' names default to 'group.1', 'group.2', ... if none are specified.
 #'
-#' @param block.sizes a vector with the number of vertices in each block
-#' @param pref.matrix a matrix whose (i,j)th entry is the probability of
-#'        an edge between a vertex in the block containing i and a vertex
-#'        in the block containing j
-#' @param block.names if not NULL, then names of the blocks
+#' @param params a list containing block.sizes, pref.matrix, and optionally block.names
 #' @return the \code{igraph} object with each vertex's group membership 
 #'         given by a vertex attribute
 #' @export
-draw.sbm.graph <- function(block.sizes, pref.matrix, block.names=NULL) {
+generate_graph.sbm <- function(params) {
+
+    block.sizes <- params$block.sizes
+    pref.matrix <- params$pref.matrix
+    block.names <- params$block.names
+    gps.in.F <- params$gps.in.F
+    gps.in.H <- params$gps.in.H
 
     # draw a random graph using a stochastic blockmodel
     g <- sbm.game(sum(block.sizes), pref.matrix, block.sizes)
@@ -32,101 +235,21 @@ draw.sbm.graph <- function(block.sizes, pref.matrix, block.names=NULL) {
     }
 
     # label vertices by group membership
-    g <- label.vertices(g, block.sizes, block.names)
+    g <- sbm_label_vertices(g, block.sizes, block.names)
+
+    # label vertices w/ dummy variables for membership in F
+    V(g)$in.F <- 0
+    V(g)[V(g)$group %in% gps.in.F]$in.F <- 1
+
+    # ... and for membership in H
+    V(g)$in.H <- 0
+    V(g)[V(g)$group %in% gps.in.H]$in.H <- 1
+
+    class(g) <- append(class(g), class(params))
 
     return(g)
 
 }
-
-#####################################################################################
-#' construct a 4-block preference matrix based on two independent categories
-#' 
-#' @description
-#' TODO
-#'
-#' @param pi.within the probability of an edge between two people in the same group
-#' @param rho the relative probability of an edge between two people who are not
-#'        in the same group (see Description)
-#' @param type (see Description)
-#' @return a 4x4 preference matrix
-pref.matrix.4group <- function(block.sizes, pi.within, rho, type,
-                               inF=NULL, inH=NULL) {
-
-    if (type=="simple") {
-        
-        # for the 'simple' type, we only care whether or not two blocks are exactly the same
-        # the block preference matrix has pi.within*rho in all of its off-diagonal entries,
-        # and pi.within on the diagonal
-        pref.matrix <- matrix(pi.within*rho, 
-                              nrow=length(block.sizes), ncol=length(block.sizes))
-        diag(pref.matrix) <- pi.within
-
-    } else if (type == "nested") {
-
-        if (is.null(inF) | is.null(inH)) {
-            stop("inF and inH must be speicifed to use the 'nested' option.")
-        }
-
-        # ties between F and not F are either from F to not F or from not F to F:
-        Fmask <- (inF %*% t(1-inF)) + ((1-inF) %*% t(inF))
-        Fmask <- 1 - Fmask * (1 - rho)
-
-        # ties between H and not H are either from H to not H or from not H to H:
-        Hmask <- (inH %*% t(1-inH)) + ((1-inH) %*% t(inH))
-        Hmask <- 1 - Hmask * (1 - rho)
-
-        # first make a matrix of the baseline prob of w/in group edge
-        pref.matrix <- matrix(pi.within, nrow=length(block.sizes), ncol=length(block.sizes))
-        # then apply the two masks which change probabilities of edges 
-        # between F / not F and H / not H
-        # (assuming these are independent)
-        pref.matrix <- pref.matrix * Hmask * Fmask
-
-    }
-
-    colnames(pref.matrix) <- names(block.sizes)
-    rownames(pref.matrix) <- names(block.sizes)
-
-    return(pref.matrix)
-}
-
-###############################################################################
-#' given parameter values, compute block sizes
-#' 
-#' given the parameter values N, p.H, and p.F, compute the number of vertices
-#' in each of the four blocks: FnotH, FH, notFnotH, notFH
-#' 
-#'
-#' @param sim.settings a list whose entries contain the parameter values
-#'        which govern this random graph draw (see details)
-#' @return a named vector; names are block names, values are block sizes
-#' @export
-block.sizes.4group <- function(sim.settings) {
-
-    # there are more sophisticated ways of doing this, but
-    # this has the advantage of being more readable, and
-    # causing errors if parameters don't exist
-    N <- sim.settings[['N']]
-    p.F <- sim.settings[['p.F']]
-    p.H <- sim.settings[['p.H']]
-    pi.within <- sim.settings[['pi.within']]
-    rho <- sim.settings[['rho']]
-
-    # assume membership in F and H are independent
-    N.FnotH <- floor(N * p.F * (1-p.H))
-    N.notFnotH <- floor(N * (1-p.F) * (1-p.H))
-    N.notFH <- floor(N * (1-p.F) * p.H)
-    N.FH <- N - N.FnotH - N.notFnotH - N.notFH
-
-    block.sizes <- c('FnotH' = N.FnotH,
-                     'FH' = N.FH,
-                     'notFnotH' = N.notFnotH,
-                     'notFH' = N.notFH)
-
-    return(block.sizes)
-
-}
-
 
 ###############################################################################
 #' draw a random graph from a stochastic blockmodel with four blocks
@@ -166,50 +289,171 @@ block.sizes.4group <- function(sim.settings) {
 #' @param sim.settings a list whose entries contain the parameter values
 #'        which govern this random graph draw (see details)
 #' @param type either 'simple' or 'nested', depending on the type of inhomogenous
-#'        mixing; see \code{pref.matrix.4group}
+#'        mixing; see \code{pref.matrix.4group.1param}
 #' @return an igraph graph, drawn according to the
 #'         settings passed in
 #' @export
-draw.4group.graph <- function(sim.settings, type="simple") {
+generate_graph.sbm_4group <- function(params) {
 
-    # there are more sophisticated ways of doing this, but
-    # this has the advantage of being more readable, and
-    # causing errors if parameters don't exist
-    pi.within <- sim.settings[['pi.within']]
-    rho <- sim.settings[['rho']]
+    this.g <- generate_graph.sbm(params)
 
-    block.sizes <- block.sizes.4group(sim.settings)
-
-    pref.matrix <- pref.matrix.4group(block.sizes, 
-                                      pi.within, rho, type,
-                                      inF=c(1,1,0,0), inH=c(0,1,0,1))
-
-    this.g <- draw.sbm.graph(block.sizes, pref.matrix)
-    
-    this.settings <- sim.settings
-    this.res <- set.graph.attribute(this.g, "sim.settings", this.settings)
-
-    this.res <- set.graph.attribute(this.res, "pref.matrix", pref.matrix)
-
-    this.res <- set.graph.attribute(this.res, "block.sizes", block.sizes)
+    this.res <- set.graph.attribute(this.g, "params", params)
+    this.res <- set.graph.attribute(this.res, "pref.matrix", params$pref.matrix)
+    this.res <- set.graph.attribute(this.res, "block.sizes", params$block.sizes)
 
     V(this.res)$id <- 1:vcount(this.res)
 
     # report the graph edges
-    this.res <- report.sbm.edges(this.res, 'd.')
+    this.res <- report_edges(this.res, 'd.')
 
     return(this.res)
 
 }
 
+#' assign labels to vertices in a graph
+#'
+#' @param graph the \code{igraph} graph
+#' @param block.sizes a vector with the number of nodes in each group
+#' @param block.names a vector (same length as \code{block.sizes}) with names of each group
+#' @export
+sbm_label_vertices <- function(graph, block.sizes, block.names) {
+
+    V(graph)$group <- "none"
+
+    break.start <- c(0, cumsum(block.sizes))
+    break.ends <- cumsum(block.sizes)
+
+    break.start <- break.start[-length(break.start)] + 1
+
+    for (i in 1:length(block.sizes)) {
+        # when this condition is FALSE, block i has 0 members (so we don't label anything)
+        if(break.start[i] <= break.ends[i]) {
+            V(graph)[break.start[i]:break.ends[i]]$group <- block.names[i]
+        }
+    }
+
+    return(graph)
+
+}
+
+#####################################################################################
+#' generic function for getting expected edgecounts
+#' 
+#' @param params parameter vector describing the model (the class of this param vector
+#'        determines which method gets run)
+expected_edgecount <- function(params, ...) {
+    UseMethod("expected_edgecount")
+}
+
+#####################################################################################
+#' compute the expected number of connections (degree) between two groups under 4-block model
+#' 
+#' for groups A and B, this returns \eqn{d_{A,B} = d_{B,A}}. 
+#'
+#' it does not matter how the preference matrix and block sizes were generated,
+#' so this function could be used with many different models.
+#'
+#' @param params a parameter vector, which must have pref.matrix and block.sizes
+#' @param first.group vector with the names of the block that blocks that are in group A
+#' @param second.group vector with the names of the blocks that are in group B
+#' @return The expected number of edges between the two groups under the stochastic block 
+#'         model given by pref.matrix. For example, 
+expected_edgecount.sbm_4group <- function(params, 
+                                          first.group, 
+                                          second.group) {
+
+    pref.matrix <- params$pref.matrix
+    block.sizes <- params$block.sizes
+
+    fg.idx <- as.numeric(names(params$block.sizes) %in% first.group)
+    sg.idx <- as.numeric(names(params$block.sizes) %in% second.group)
+
+    fg <- fg.idx * block.sizes
+    sg <- sg.idx * block.sizes
+    both.groups <- (fg.idx * sg.idx * block.sizes)
+
+    return(as.numeric(t(fg) %*% pref.matrix %*% sg -
+                      t((both.groups^2 + both.groups)/2)%*%diag(pref.matrix)))
+
+}
+
+#####################################################################################
+#' generic fn for getting expected values from stochastic block model
+#' 
+#' @param params the parameter object
+sbm_ev <- function(params, ...) {
+    UseMethod("sbm_ev")
+}
+
+#####################################################################################
+#' compute the expected value for various quantities under four-group model
+#' 
+#' 
+#'
+#' @param params list/object containing the simulation parameters
+#' @param inF vector with 1s for blocks in F, 0 otherwise
+#' @param inH vector with 1s for blocks in H, 0 otherwise
+#' @param inU vector with 1s for blocks in U, 0 otherwise
+#' @return the expected value of various quantities
+#' @export
+sbm_ev.sbm_4group <- function(params, 
+                              inF=c('FnotH', 'FH'),
+                              inH=c('FH', 'notFH'),
+                              inU=c('FnotH', 'FH', 'notFnotH', 'notFH')) {
+
+
+    these.block.sizes <- params$block.sizes
+    this.pref.matrix <- params$pref.matrix
+
+    not.inF <- inU[ ! inF %in% inU ]
+
+    N.F <- sum(these.block.sizes[inF])
+    N.H <- sum(these.block.sizes[inH])
+    N <- sum(these.block.sizes)
+
+    res <- params[c('N', 'p.F', 'p.H', 'pi.within', 'rho', 'tau')]
+
+    res$d.F.H <- expected_edgecount(params, inF, inH)
+
+    # averages are always wrt the first subscript
+    res$dbar.F.F <- expected_edgecount(params, inF, inF) / N.F
+    res$dbar.notF.F <- expected_edgecount(params, not.inF, inF) / (N - N.F)
+    res$dbar.U.F <- expected_edgecount(params, inU, inF) / N
+    res$dbar.F.U <- expected_edgecount(params, inF, inU) / N.F
+    res$dbar.U.U <- expected_edgecount(params, inU, inU) / N
+    res$dbar.H.U <- expected_edgecount(params, inH, inU) / N.H
+    res$dbar.H.F <- expected_edgecount(params, inH, inF) / N.H
+
+    res$phi.F <- res$dbar.F.F / res$dbar.U.F
+    res$delta.F <- res$dbar.H.F / res$dbar.F.F
+    res$deltaXphi.F <- res$phi.F * res$delta.F
+    res$total <- res$phi.F * res$delta.F * res$tau
+
+    return(data.frame(res))
+
+}
+
 ###############################################################################
-#' for each vertex, compute the number of reported connections to each block
+#' for each vertex, compute the number of  connections to each block
+#'
+#' If this function is called on an undirected social network graph (with mode='all'),
+#' then it counts the true number of social connections between each node and
+#' the various blocks.
+#'
+#' On the other hand, if this function is called on a directed reporting graph,
+#' then it computes the reported number of social connections (with mode='in')
+#' or visibility (with mode='out').
 #'
 #' @details
 #' 
-#' This function is useful for computing edge counts (ie, reports) between
+#' This function is useful for computing edge counts (i.e. )
+#' between
 #' individual vertices and the blocks. These edge counts are the building
 #' blocks of many network reporting estimators.
+#' 
+#' Since this function is based on the stochastic block model, it assumes
+#' that the groups are mutually exclusive. This could be modified in the
+#' future.
 #'
 #' Note that, counter-intuitively, mode="in" will compute out-reports and
 #' mode="out" will compute in-reports. This is the \code{igraph} convention.
@@ -229,7 +473,7 @@ draw.4group.graph <- function(sim.settings, type="simple") {
 #' @return the \code{igraph} object with new attributes affixed to each vertex
 #'         (see Details)
 #' @export
-report.sbm.edges <- function(g, prefix='d.', mode="all") {
+report_edges.sbm <- function(g, prefix='d.', mode="all") {
 
     # compute the degree of each vertex
     # note that for undirected graphs, mode='out' has no effect; this just
@@ -271,6 +515,8 @@ report.sbm.edges <- function(g, prefix='d.', mode="all") {
 
     colnames(ubertally) <- paste0(prefix, colnames(ubertally))
 
+    # add each vertex's number of connections as a vertex attribute called,
+    # eg, "d.group1", "d.group2", etc...
     for(this.name in colnames(ubertally)) {
         g <- set.vertex.attribute(g, this.name, value=ubertally[,this.name])
     }
@@ -279,34 +525,41 @@ report.sbm.edges <- function(g, prefix='d.', mode="all") {
 
 }
 
+
+
 ###############################################################################
-#' compute network reporting estimates from a randomly simulated graph
+#' compute network reporting estimates from a randomly simulated stochastic block model
 #'
-#' @param reporting.graph the reporting graph object
-#' @param hidden.popn the names of block(s) containing the hidden population
-#' @param frame.popn the names of block(s) containing the frame population
+#' note that this code relies upon the fact that the vertices should have
+#' two 0/1 attributes, in.H and in.F, which indicate whether or not each one
+#' is in the hidden population and the frame population
+#'
+#' @param rg.dat dataset from a reporting graph object
+#' @param weights weights that account for the sampling (if any);
+#'        this should be a vector that is the same length as the number of rows in rg.dat
 #' @return a data frame with estimates and several related quantities
 #' @export
-reporting.estimates <- function(reporting.graph, hidden.popn, frame.popn) {
+sbm_estimates <- function(data, weights=data[,'sampling.weight']) {
 
-    rg.dat <- get.data.frame(reporting.graph, 'vertices')
-    rg.dat <- rg.dat %>% mutate(in.H = as.numeric(group %in% hidden.popn),
-                                in.F = as.numeric(group %in% frame.popn))
+    rg.dat <- data
+    rg.dat$.weights <- weights
 
-    true.N.H <- sum(rg.dat$in.H)
+    true.N.H <- sum(rg.dat$in.H * rg.dat$.weights)
 
     nsum.ests <- rg.dat %>% 
-                 summarise(tot.y = sum(in.F*(y.FH + y.notFH)),
-                           dbar.F.F = sum(in.F*(d.FH + d.FnotH))/sum(in.F),
-                           dbar.U.F = mean(d.FH + d.FnotH),
-                           dbar.H.F = sum(in.H*(d.FH + d.FnotH))/sum(in.H),
-                           vbar.H.F = sum(in.F*(y.FH + y.notFH))/sum(in.H),
-                           dbar.FH = sum(in.F*in.H*d.degree)/sum(in.F*in.H),
-                           dbar.FnotH = sum(in.F*(1-in.H)*d.degree)/sum(in.F*(1-in.H)),
-                           dbar.notFnotH = sum((1-in.F)*(1-in.H)*d.degree)/
-                                           sum((1-in.F)*(1-in.H)),
-                           dbar.notFH = sum((1-in.F)*in.H*d.degree)/sum((1-in.F)*in.H),
-                           dbar = mean(d.degree)) %>%
+                 summarise(tot.y = sum(.weights*in.F*(y.FH + y.notFH)),
+                           dbar.F.F = sum(.weights*in.F*(d.FH + d.FnotH))/sum(.weights*in.F),
+                           dbar.U.F = sum(.weights*(d.FH + d.FnotH))/sum(.weights),
+                           dbar.H.F = sum(.weights*in.H*(d.FH + d.FnotH))/sum(.weights*in.H),
+                           vbar.H.F = sum(.weights*in.F*(y.FH + y.notFH))/sum(.weights*in.H),
+                           dbar.FH = sum(.weights*in.F*in.H*d.degree)/sum(.weights*in.F*in.H),
+                           dbar.FnotH = sum(.weights*in.F*(1-in.H)*d.degree)/
+                                        sum(.weights*in.F*(1-in.H)),
+                           dbar.notFnotH = sum(.weights*(1-in.F)*(1-in.H)*d.degree)/
+                                           sum(.weights*(1-in.F)*(1-in.H)),
+                           dbar.notFH = sum(.weights*(1-in.F)*in.H*d.degree)/
+                                        sum(.weights*(1-in.F)*in.H),
+                           dbar = sum(.weights*d.degree)/sum(.weights)) %>%
                 ## compute the adjustment factors, as well as the basic
                 ## and generalized estimates
                 mutate(phi.F = dbar.F.F / dbar.U.F,
@@ -323,106 +576,4 @@ reporting.estimates <- function(reporting.graph, hidden.popn, frame.popn) {
 
 }
 
-#####################################################################################
-#' compute the expected number of connections (degree) between two groups under 4-block model
-#' 
-#' for groups A and B, this returns \eqn{d_{A,B} = d_{B,A}}. 
-#'
-#' @param pref.matrix the preference matrix
-#' @param block.sizes vector with the number of vertices in each block
-#' @param first.group vector with 0/1 entries indicating which blocks are in group A
-#' @param second.group vector with 0/1 entries indicating which blocks are in group B
-#' @return The expected number of edges between the two groups under the stochastic block 
-#'         model given by pref.matrix. For example, 
-expected.edgecount.4group <- function(pref.matrix, 
-                                      block.sizes,
-                                      first.group, 
-                                      second.group) {
-
-    fg <- first.group * block.sizes
-    sg <- second.group * block.sizes
-    both.groups <- (first.group * second.group * block.sizes)
-
-    
-    return(as.numeric(t(fg) %*% pref.matrix %*% sg -
-                      t(both.groups)%*%diag(pref.matrix)))
-
-}
-
-
-#####################################################################################
-#' compute the expected value for various quantities under four-group model
-#' 
-#' 
-#'
-#' @param these.params list containing the simulation parameters
-#' @param type either "nested" or "simple"
-#' @param inF vector with 1s for blocks in F, 0 otherwise
-#' @param inH vector with 1s for blocks in H, 0 otherwise
-#' @param inU vector with 1s for blocks in U, 0 otherwise
-#' @return the expected value of various quantities
-#' @export
-ev.4group <- function(these.params, 
-                      type="nested",
-                      inF=c(1,1,0,0),
-                      inH=c(0,1,0,1),
-                      inU=c(1,1,1,1)) {
-
-    these.block.sizes <- block.sizes.4group(these.params)
-
-    this.pref.matrix <- pref.matrix.4group(these.block.sizes,
-                                           these.params$pi.within,
-                                           these.params$rho,
-                                           type=type,
-                                           inF=this.inF,
-                                           inH=this.inH)
-
-    res <- these.params
-
-    res$dbar.F.F <- ev.4group.mean(this.pref.matrix, these.block.sizes,
-                                   inF, inF)
-    res$dbar.notF.F <- ev.4group.mean(this.pref.matrix, these.block.sizes,
-                                   1-inF, inF)
-    res$d.F.H <- ev.4group.tot(this.pref.matrix, these.block.sizes,
-                               inF, inH)
-    res$dbar.U.F <- ev.4group.mean(this.pref.matrix, these.block.sizes,
-                                   inU, inF)
-    res$dbar.F.U <- ev.4group.mean(this.pref.matrix, these.block.sizes,
-                                   inF, inU)
-    res$dbar.U.U <- ev.4group.mean(this.pref.matrix, these.block.sizes,
-                                   inU, inU)
-    res$dbar.H.U <- ev.4group.mean(this.pref.matrix, these.block.sizes,
-                                   inH, inU)
-    res$dbar.H.F <- ev.4group.mean(this.pref.matrix, these.block.sizes,
-                                   inH, inF)
-
-    res$phi.F <- res$dbar.F.F / res$dbar.U.F
-    res$delta.F <- res$dbar.H.F / res$dbar.F.F
-    res$deltaXphi.F <- res$phi.F * res$delta.F
-    res$total <- res$phi.F * res$delta.F * res$tau
-
-    return(data.frame(res))
-
-}
-
-#####################################################################################
-#' compute the expected value for various quantities under four-group model
-#' 
-#' for groups A and B, these functions return \eqn{d_{A,B}} and \eqn{\bar{d}_{A,B}}
-#'
-#' @param pm the preference matrix
-#' @param bs the block sizes
-#' @param fg 0/1 indicator vector for blocks in the first index (A in the description above)
-#' @param sg 0/1 indicator vector for blocks in the second index (B in the description above)
-#' @return the expected value of the mean or the total number of connections
-#'         from the first group to the second. Means are taken with respect to the members
-#'         of the first index
-ev.4group.tot <- function(pm, bs, fg, sg) {
-    return(expected.edgecount.4group(pm, bs, fg, sg))
-}
-
-#' @rdname ev.4group.tot
-ev.4group.mean <- function(pm, bs, fg, sg) {
-    return(expected.edgecount.4group(pm, bs, fg, sg)/sum(bs*fg))
-}
 

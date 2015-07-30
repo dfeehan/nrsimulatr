@@ -41,51 +41,56 @@ sim.params <- expand.grid(# size of total population, U
                           rho=.1,
                           tau=.5)
 
-
 ```
 
 Now draw the actual random graph.
 
 ```{r}
-this.g <- draw.4group.graph(sim.params, type="nested")
+params <- sbm_params(sim.params, type="4group_1param_nested")
+this.g <- generate_graph(params)
 this.g.df <- get.data.frame(this.g, 'vertices')
 ```
 
 Next, generate the reporting graph.
 
+(NB: right now, converting to a reporting graph is quite slow.)
+
 ```{r}
-this.r <- reporting.graph(this.g, 
-                          hidden.popn=c('FH', 'notFH'),
-                          frame.popn=c('FH', 'FnotH'))
+rep.params <- perfect_reporting()
+this.r <- reporting_graph(rep.params, this.g)
+```
+
+Then take a sample (but we'll just keep everything with a census).
+
+
+```{r}
+
+this.r.sample <- sample_graph(entire_census(), this.r)
+#this.r.sample <- sample_graph(frame_srs(params=list(sampling.frac=.1)), this.r)
+
 ```
 
 Finally, produce estimates
 
 ```{r}
 
-these.ests <- reporting.estimates(this.r, 
-                                  hidden.popn=c('FH', 'notFH'),
-                                  frame.popn=c('FH', 'FnotH'))
+these.ests <- sbm_estimates(this.r.sample)
 
 ```
 
 Also, get the expected values for this parameter combination
 
+TODO - should probably just use sbm_ev function now...
+
 ```{r}
-these.params <- sim.params[1,]
+params <- sbm_params(sim.params, type="4group_1param_nested")
+
 this.inF <- c(1,1,0,0)
 this.inH <- c(0,1,0,1)
 this.inU <- c(1,1,1,1)
-these.block.sizes <- graph.attributes(this.r)$block.sizes
 
-this.pref.matrix <- pref.matrix.4group(these.block.sizes,
-                                       these.params$pi.within,
-                                       these.params$rho,
-                                       type="nested",
-                                       inF=this.inF,
-                                       inH=this.inH)
-
-
+these.block.sizes <- params$block.sizes
+this.pref.matrix <- params$pref.matrix
 ```
 
 ```{r}
@@ -109,11 +114,6 @@ eec.dbar.H.F <- function(pm, bs) {
     eec <- expected.edgecount.4group(pm, bs, this.inH, this.inF)
     return(2*eec / sum(bs*this.inH))
 }
-
-#eec.TODO <- expected.edgecount.4group(this.pref.matrix,
-#                                      these.block.sizes,
-#                                      first.group=TODO,
-#                                      second.group=TODO)
 
 ```
 

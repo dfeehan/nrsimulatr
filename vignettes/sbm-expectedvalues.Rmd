@@ -28,11 +28,14 @@ knitr::opts_chunk$set(echo=FALSE, message=FALSE)
 
 This file shows the (analytically-derived) expected values for several
 quantities under the stochastic block model simulation design. There are
-two variants of the design: simple and nested. These can be distinguished
-by the mixing matrices. The simple mixing matrix contains only $\zeta$ and
-$\rho\cdot\zeta$, while the nested mixing matrix also has $\rho^2\cdot\zeta$.
+three variants of the design: simple, nested, and two-parameter. 
+These can be distinguished by the mixing matrices, as shown below.
 
-#### Simple mixing matrix:
+#### Simple mixing matrix
+
+In the simple mixing matrix, the probability of a tie between any two
+vertices that are not in exactly the same group is multiplied by $\rho$:
+
 $$
 \begin{matrix}
     & ~F~H           & ~F \lnot H     & \lnot F ~H     & \lnot F \lnot H \\
@@ -43,7 +46,13 @@ $$
 \end{matrix}
 $$
 
-#### Nested mixing matrix:
+#### Nested mixing matrix
+
+In the nested mixing matrix, the probability of a tie between any two vertices
+who differ in one dimension (membership in $F$ or membership in $H$) is multiplied by
+$\rho$; the probability of a tie between two vertices that differ on both dimensions
+is multiplied by $\rho^2$:
+
 $$
 \begin{matrix}
     & ~F~H           & ~F \lnot H     & \lnot F ~H     & \lnot F \lnot H \\
@@ -54,8 +63,27 @@ $$
 \end{matrix}
 $$
 
+#### Two-parameter mixing matrix
+
+In the two-parameter mixing matrix, the probability of a tie between two vertices
+that differ in membership in $F$ is multiplied by $\xi$; and, independently, the
+probability of a tie between two vertices that differ in membership in $H$ is
+multiplied by $\rho$:
+
+$$
+\begin{matrix}
+                    & ~F~H                   & ~F \lnot H              & \lnot F ~H              & \lnot F \lnot H \\
+    ~F~H            & \zeta                  & \rho\cdot\zeta          & \xi\cdot\zeta           & \xi\cdot\rho\cdot\zeta \\
+    ~F \lnot H      & \rho\cdot\zeta         & \zeta                   & \xi\cdot\rho\cdot\zeta  & \xi\cdot\zeta \\
+    \lnot F ~H      & \xi\cdot\zeta          & \xi\cdot\rho\cdot\zeta  & \zeta                   & \rho\cdot\zeta \\
+    \lnot F \lnot H & \xi\cdot\rho\cdot\zeta & \xi\cdot\zeta           & \rho\cdot\zeta          & \zeta
+\end{matrix}
+$$
+
 ### Analytical derivations
 
+The expected values for the number of connections between groups or sets of
+groups depends on the structure of the mixing matrix.
 Write the number of vertices in each of the four blocks as
 a vector, $\mathbf{n}$.
 
@@ -80,7 +108,7 @@ To understand this expression, note that the number of edges
 between two distinct blocks $i$ and $j$ will be
 $N_i~N_j~M_{ij}$. Since we do not permit self-loops, 
 the number of edges from one block to itself
-will be $N_i~(N_i - 1)~M_{ii}$.  The expression
+will be $\frac{N_i~(N_i - 1)}{2}~M_{ii}$.  The expression
 
 $$
 \begin{equation}
@@ -90,18 +118,18 @@ $$
 where $b(A)$ and $b(B)$ are the sets of blocks consisting of $A$ and $B$ is
 almost what we want. The problem is that each block $i$ in both $b(A)$ and
 $b(B)$ is sending edges to itself. In the equation above, it contributes
-$N_i^2~M_{i,i}$ instead of $N_i~(N_i - 1)~M_{i,i}$. So instead of the equation
+$N_i^2~M_{i,i}$ instead of $\frac{N_i~(N_i - 1)}{2}~M_{i,i}$. So instead of the equation
 above, we actually want
 
 $$
 \begin{equation}
 d_{A, B} = \sum_{i \in b(A)} \sum_{j \in b(B)} N_i~N_j~M_{ij} -
-   \sum_{i \in b(A) \cap b(B)} N_i~M_{i,i},
+   \sum_{i \in b(A) \cap b(B)} \frac{(N_i^2 + N_i)}{2}~M_{i,i},
 \end{equation}
 $$
 
 In this equation, the subtracted term accounts for the difference between
-$N_i^2$ and $N_i~(N_i - 1)$.
+$N_i^2$ and $\frac{N_i~(N_i - 1)}{2}$.
 
 ### TODO - also show expression for variance of expected values
 
@@ -113,31 +141,19 @@ Next, we will look at the expected values for several important quantities under
 of the stochastic block-model: the nested and the simple versions.
 
 ```{r}
-this.inF <- c(1,1,0,0)
-this.inH <- c(0,1,0,1)
-this.inU <- c(1,1,1,1)
-
 tmp.params <- list(N=100,
                    p.F=.5,
                    p.H=1,
-                   pi.within=1,
+                   pi.within=.1,
                    rho=1,
                    tau=1)
 
-tmp.ev <- ev.4group(tmp.params,
-                    inF=this.inF,
-                    inH=this.inH,
-                    inU=this.inU)
+params <- sbm_params(tmp.params, type="4group_1param_simple")
 
-tmp.block.sizes <- block.sizes.4group(tmp.params)
+tmp.ev <- sbm_ev(params)
 
-this.pref.matrix <- pref.matrix.4group(tmp.block.sizes,
-                                       tmp.params$pi.within,
-                                       tmp.params$rho,
-                                       type="simple",
-                                       inF=this.inF,
-                                       inH=this.inH)
-
+tmp.block.sizes <- params$block.sizes
+this.pref.matrix <- params$pref.matrix
 
 ```
 
@@ -164,22 +180,23 @@ all.param.list <- split(param.vals, rownames(param.vals))
 ```
 
 ```{r}
-this.inF <- c(1,1,0,0)
-this.inH <- c(0,1,0,1)
-this.inU <- c(1,1,1,1)
+all.param.list.nested <- llply(all.param.list,
+                               sbm_params,
+                               type="4group_1param_nested")
 
-res.nested <- ldply(all.param.list,
-                    ev.4group, type="nested",
-                    inF=this.inF,
-                    inH=this.inH,
-                    inU=this.inU)
+res.nested <- ldply(all.param.list.nested,
+                    sbm_ev)
+
 res.nested$type <- "nested"
 
-res.simple <- ldply(all.param.list,
-                    ev.4group, type="simple",
-                    inF=this.inF,
-                    inH=this.inH,
-                    inU=this.inU)
+## now do the same for the simple version
+
+all.param.list.simple <- llply(all.param.list,
+                               sbm_params,
+                               type="4group_1param_simple")
+
+res.simple <- ldply(all.param.list.simple,
+                    sbm_ev)
 res.simple$type <- "simple"
 
 res <- rbind(res.nested, res.simple)
@@ -276,7 +293,7 @@ toplot<- res.both %>%
 
 ### Expected values for adjustment factors
 
-```{r, fig.width=14, fig.height=6}
+```{r, fig.width=14, fig.height=6, results='asis'}
 
 phi.byrho.lim <- ggplot(toplot %>%
                              mutate(estimator=ifelse(estimator=="generalized.est",

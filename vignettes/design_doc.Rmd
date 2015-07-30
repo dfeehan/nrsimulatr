@@ -1,0 +1,163 @@
+---
+title: "Network reporting simulation package - design document"
+author: "Dennis Feehan"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{sbm-simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+This document describes the design of `nrsimulatr`, a package to help
+researchers experiment with network reporting methods through simulations.
+
+Conducting a network reporting simulation can be broken down into
+several steps:
+
+* generating a social network
+* generating a reporting network from the social network
+* sampling respondents
+* computing estimates
+
+The sections in this document roughly correspond to those steps.
+
+## Generating a social network
+
+In network reporting, the social network is the undirected network
+that respondents are asked to report about.
+
+Currently, there is only one broad way to generate a social network in the package:
+using a stochastic block model.
+However, this part of the code is designed to be expanded in the future
+in two ways: first, it should be easy for future researchers to add
+different probabilistic network models; and, second,
+it should be possible to use real-world network datasets.
+
+### Data model
+
+Whether stochastically generating a network or reading one in
+from a dataset, the result should be an `igraph` object whose
+vertices have (at least) the following attributes:
+
+* `in.H` - 0/1 indicator for membership in H
+* `in.F` - 0/1 indicator for membership in F
+* `d.degree` - the node's degree
+
+### Methods
+
+* `generate_graph` (generic)
+
+### Stochastic block model
+
+So far, the only stochastic model for generating social networks that has
+been written is based on the stochastic block model.
+There are three versions: `4group_1param_simple`,
+`4group_1param_nested`, and `4group_2param`.
+
+TODO - FILL IN DETAILS
+
+To create a social network using the stochastic block model, call the method
+`sbm_params`. This method takes a list of parameters and constructs an S3 class
+representing the simuluation. The resulting parameter object can be passed
+to `generate_graph`.
+
+TODO - example code?
+
+### Creating new models
+
+TODO
+
+## Generating a reporting network from the social network
+
+In network reporting, the reporting network is the directed network of respondents'
+reports about their network connections. When reporting is accurate, this network
+is similar to the social network, but if reporting is inaccurate, then it can be
+quite different.
+
+`nrsimulatr` treats the social and the reporting networks as entirely
+separate. Once the social network has been created, generating a reporting
+network is a distinct process.
+
+If you create a new model for generating social networks, and you want reporting
+to vary as part of your model, you will have to create a set of methods that
+turn your social network into a reporting graph.
+
+The package currently implements only the basic form of imperfect reporting,
+which makes use of the fact that the vertices of the social network graph
+have labels `in.F` and `in.H` indicating whether or not each vetex is in the
+frame population and in the hidden population.
+This basic form of imperfect reporting is governed by two parameters,
+ $\tau_F$ and $\eta_F$.
+
+### Data model
+
+A reporting network object is a directed `igraph` object whose vertices have (at least)
+the following attributes:
+
+* `in.H` - 0/1 indicator for membership in H
+* `in.F` - 0/1 indicator for membership in F
+* `y.H` - number of out-reports about connections to H
+* `v.F` - visibility to people in F
+
+### Methods
+
+* `reporting_graph` (generic)
+* TODO - more?
+
+## Sampling respondents and computing estimates
+
+Sampling respondents mimics the process of sampling a real population.
+
+`nrsimulatr` currently implements three types of sampling:
+
+* taking a census
+* simple random sampling from F
+* relative probability sampling from H
+
+Sampling produces a dataset of the attributes of the sampled nodes,
+along with a variable called `sampling_weight`, which has the
+weights for the sample.
+
+## Computing estimates
+
+Researchers may be interested in computing lots of different kinds
+of estimates using network reporting methods.
+
+`nrsimulatr` assumes that computing estimates only requires
+datasets produced from sampling respondents, and not any
+other information about the network.
+
+Right now, the package only has one simple function used
+to compute estimates related to the stochastic block model;
+it is called `sbm_estimates`.
+
+Researchers can add other functions for computing estimates
+from stochastic block models, or from models they write themselves.
+
+TODO - recommend that estimator functions take a dataset
+and info about weights
+
+## Example of creating new model
+
+TODO - good example might be something like ER random graph
+with everyone in F and a random 10% of people in H
+
+
+* estimates function (maybe)
+* `report_edges` function for new model
+* constructor fn for params (probably)
+* `generate_graph` given a set of params function for new model
+
+if your model is partially to test new reporting assumptions,
+you might also want to add
+
+* constructor fn for new reporting params
+* `reporting_graph` function
+
+
+```{r}
+library(knitr)
+opts_chunk$set(eval=FALSE)
+```
+
