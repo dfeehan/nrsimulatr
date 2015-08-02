@@ -88,11 +88,9 @@ reporting_graph.imperfect_reporting <- function(reporting.params, sim.graph) {
     # count up the reports in the reporting graph: 
     # ... out-reports (y)
     rep.graph <- report_edges(rep.graph, prefix='y.', mode="in")    
+    
     # ... in-reports (v)
     rep.graph <- report_edges(rep.graph, prefix='v.', mode="out")    
-
-    ## TODO - decide what to do about what class the reporting
-    ## graph is
 
     return(rep.graph)
 
