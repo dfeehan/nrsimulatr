@@ -481,51 +481,35 @@ report_edges.sbm <- function(g, prefix='d.', mode="all") {
     #V(g)$degree <- degree(g, mode="out")
     g <- set.vertex.attribute(g, paste0(prefix, 'degree'), value=degree(g, mode=mode))
 
-    # and compute a matrix of indicator variables with the group membership of each vertex
-    gp.lookup <- get.data.frame(g, 'vertices')
-
-    #block.names <- unique(paste(gp.lookup$group))
     block.names <- names(graph.attributes(g)$block.sizes)
 
-    gp.lookup$group <- factor(gp.lookup$group, levels=block.names)
+    adj.matrix <- get.adjacency(g)
 
-    gp.lookup$id <- 1:nrow(gp.lookup)
+    vertex.groups <- get.vertex.attribute(g, 'group')
 
-    # (make this wide, so that we can just sum columns to get totals)
-    gp.lookup <- gp.lookup %>% 
-                 select(id, group) %>%
-                 mutate(present=1) %>% 
-                 spread(group, present, fill=0, drop=FALSE) %>% 
-                 arrange(id)
+    ## go through and get reported connections to each block
+    for (b in block.names) {
 
-    gp.lookup <- as.matrix(gp.lookup[,block.names])
+        in.b <- as.numeric(vertex.groups == b)
 
-    # go through each vertex, and add 1 to its neighbors' counts of
-    # connections based on which group it's in
+        res.name <- paste0(prefix, b)
 
-    ## get reports (out-edges)
-    # start with a matrix of 0s for each vertex's connection to each other group
-    ubertally <- matrix(0, nrow=length(V(g)), ncol=length(block.names))
-    colnames(ubertally) <- block.names
+        if (mode=='out') {
+          # in this case, we want visibilities
+          # which are A^T x; we'll compute them via
+          # we'll compute x^T A instead
+          num.rep.conns <- as.numeric(t(in.b) %*% adj.matrix)
+        } else {
+          num.rep.conns <- as.numeric(adj.matrix %*% in.b)
+        }
 
-    for(i in 1:length(V(g))) {
-        these.nei <- V(g)[nei(i, mode=mode)]
-        ubertally[these.nei,] <- t(t(ubertally[these.nei,]) + gp.lookup[i,])
-    }
-
-    colnames(ubertally) <- paste0(prefix, colnames(ubertally))
-
-    # add each vertex's number of connections as a vertex attribute called,
-    # eg, "d.group1", "d.group2", etc...
-    for(this.name in colnames(ubertally)) {
-        g <- set.vertex.attribute(g, this.name, value=ubertally[,this.name])
+        g <- set.vertex.attribute(g, res.name,
+                                  value=num.rep.conns)
     }
 
     return(g)
 
 }
-
-
 
 ###############################################################################
 #' compute network reporting estimates from a randomly simulated stochastic block model
