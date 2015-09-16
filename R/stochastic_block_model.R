@@ -54,14 +54,31 @@ sbm_block_sizes.sbm_4group <- function(params) {
     N <- params[['N']]
     p.F <- params[['p.F']]
     p.H <- params[['p.H']]
-    pi.within <- params[['pi.within']]
+
+    # if the parameters 'p.F.given.H' is either not there (NULL) or NA
+    # then assume independent membership in the two groups
+    p.F.given.H <- ifelse(! (is.null(params[['p.F.given.H']])||is.na(params[['p.F.given.H']])),
+                          params[['p.F.given.H']],
+                          p.F)
+
+    zeta <- params[['zeta']]
     rho <- params[['rho']]
 
     # assume membership in F and H are independent
-    N.FnotH <- floor(N * p.F * (1-p.H))
-    N.notFnotH <- floor(N * (1-p.F) * (1-p.H))
-    N.notFH <- floor(N * (1-p.F) * p.H)
-    N.FH <- N - N.FnotH - N.notFnotH - N.notFH
+    N.F <- floor(N*p.F)
+    N.H <- floor(N*p.H)
+
+    # if p.F.given.H * N.H > N.F, we only take
+    # N.F ppl
+    N.FH <- floor(min(p.F.given.H*N.H, N.F))
+    N.FnotH <- N.F - N.FH
+    N.notFH <- N.H - N.FH
+    N.notFnotH <- N - N.FH - N.FnotH - N.notFH
+
+    #N.FnotH <- floor(N * p.F * (1-p.H))
+    #N.notFnotH <- floor(N * (1-p.F) * (1-p.H))
+    #N.notFH <- floor(N * (1-p.F) * p.H)
+    #N.FH <- N - N.FnotH - N.notFnotH - N.notFH
 
     block.sizes <- c('FnotH' = N.FnotH,
                      'FH' = N.FH,
@@ -98,17 +115,17 @@ sbm_pref_matrix <- function(params) {
 #' @description
 #' TODO
 #'
-#' @param list of parameters, including block.sizes, pi.within and rho
+#' @param list of parameters, including block.sizes, zeta and rho
 #' @return a 4x4 preference matrix
 sbm_pref_matrix.4group_1param_simple <- function(params) {
 
-    pi.within <- params$pi.within
+    zeta <- params$zeta
     rho <- params$rho
     block.sizes <- params$block.sizes
 
-    pref.matrix <- matrix(pi.within*rho, 
+    pref.matrix <- matrix(zeta*rho, 
                           nrow=length(block.sizes), ncol=length(block.sizes))
-    diag(pref.matrix) <- pi.within
+    diag(pref.matrix) <- zeta
 
     colnames(pref.matrix) <- names(block.sizes)
     rownames(pref.matrix) <- names(block.sizes)
@@ -122,11 +139,11 @@ sbm_pref_matrix.4group_1param_simple <- function(params) {
 #' @description
 #' TODO
 #'
-#' @param list of parameters, including block.sizes, pi.within, rho, gps.in.F, and gps.in.H
+#' @param list of parameters, including block.sizes, zeta, rho, gps.in.F, and gps.in.H
 #' @return a 4x4 preference matrix
 sbm_pref_matrix.4group_1param_nested <- function(params) {
 
-    pi.within <- params$pi.within
+    zeta <- params$zeta
     block.sizes <- params$block.sizes
     rho <- params$rho
 
@@ -142,7 +159,7 @@ sbm_pref_matrix.4group_1param_nested <- function(params) {
     Hmask <- 1 - Hmask * (1 - rho)
 
     # first make a matrix of the baseline prob of w/in group edge
-    pref.matrix <- matrix(pi.within, nrow=length(block.sizes), ncol=length(block.sizes))
+    pref.matrix <- matrix(zeta, nrow=length(block.sizes), ncol=length(block.sizes))
     # then apply the two masks which change probabilities of edges 
     # between F / not F and H / not H
     # (assuming these are independent)
@@ -161,11 +178,11 @@ sbm_pref_matrix.4group_1param_nested <- function(params) {
 #' @description
 #' TODO
 #'
-#' @param list of parameters, including block.sizes, pi.within, rho, xi, gps.in.F, and gps.in.H
+#' @param list of parameters, including block.sizes, zeta, rho, xi, gps.in.F, and gps.in.H
 #' @return a 4x4 preference matrix
 sbm_pref_matrix.4group_2param <- function(params) {
 
-    pi.within <- params$pi.within
+    zeta <- params$zeta
     block.sizes <- params$block.sizes
     # rho is the penalty for prob of edge between F vs not F
     rho <- params$rho
@@ -184,7 +201,7 @@ sbm_pref_matrix.4group_2param <- function(params) {
     Hmask <- 1 - Hmask * (1 - rho)
 
     # first make a matrix of the baseline prob of w/in group edge
-    pref.matrix <- matrix(pi.within, nrow=length(block.sizes), ncol=length(block.sizes))
+    pref.matrix <- matrix(zeta, nrow=length(block.sizes), ncol=length(block.sizes))
     # then apply the two masks which change probabilities of edges 
     # between F / not F and H / not H
     # (assuming these are independent)
@@ -268,7 +285,10 @@ generate_graph.sbm <- function(params) {
 #' \item N the size of the entire population
 #' \item p.F the prevalence of the frame population (N.F/N)
 #' \item p.H the prevalence of the hidden population (N.H/N)
-#' \item pi.within the probability of forming a tie for a pair of
+#' \item p.F.given.H the probability of being in F, given that a node is in H;
+#'       if not specified, assume the probabilities are independent, so that
+#'       p.F.given.H = p.F
+#' \item zeta the probability of forming a tie for a pair of
 #'       nodes in the same group
 #' \item rho the relative probability of edge between two nodes that
 #'       are not in the same group (for example, between a node in FnotH and FH).
@@ -278,7 +298,7 @@ generate_graph.sbm <- function(params) {
 #' }
 #'
 #' The overall level of connectivity in the graph can be controlled by
-#' varying pi.within. The extent to which members of the group are
+#' varying zeta. The extent to which members of the group are
 #' homogenously mixed can be controlled by varying rho.
 #' For example, when rho is 1, then all four groups are perfectly
 #' mixed with the entire population. When rho is less than 1, members of the
@@ -411,7 +431,9 @@ sbm_ev.sbm_4group <- function(params,
     N.H <- sum(these.block.sizes[inH])
     N <- sum(these.block.sizes)
 
-    res <- params[c('N', 'p.F', 'p.H', 'pi.within', 'rho', 'tau')]
+    res <- params[c('N', 'p.F', 'p.H', 'p.F.given.H', 'zeta', 'rho', 'tau')]
+
+    res$xi <- ifelse(! is.null(params$xi), params$xi, NA)
 
     res$d.F.H <- expected_edgecount(params, inF, inH)
 
