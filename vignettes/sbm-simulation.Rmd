@@ -21,125 +21,213 @@ library(tidyr)
 library(stringr)
 ```
 
+## Two-parameter model
+
 ```{r}
 set.seed(12345)
 ```
 
 Now set up the params for one random draw.
 
+We'll set this up to explore what happens when we change $\rho$, the relative
+probability of an edge between a hidden population member and a non-hidden population
+member. We'll hold all of the other parameters fixed:
+
+* $N = 10,000$, the population size
+* $p_F = 0.5$, the prevalence of the frame population
+* $p_H = 0.03$, the prevalence of the hidden population
+* $p_{F|H} = 1$, the fraction of nodes in $H$ that are also in $F$;
+   here, all nodes in $H$ are also in $F$
+* $\zeta = 0.05$, the probability of an edge between any two nodes in the same group
+  (e.g., between two nodes that are both in $F$ and both not in $H$)
+* $\tau=0.8$, a true positive rate corresponding to a moderate lack of awareness
+* the sampling fraction for the simple random sample we will take of the nodes
+  in the frame population
+* the sampling fraction for the relative probability sample we will take from the
+  hidden population
+
+We first use `expand.grid` to build a dataframe containing all of the combinations of the parameters we will explore with the simulation.
+
 ```{r}
 sim.params <- expand.grid(# size of total population, U
                           N=10e3,
-                          #N=10e3,
-                          # frame population is half of total
+                          # fraction of the population that is in the frame population (F)
                           p.F=.5,
-                          # hidden popn is 3 percent of total
+                          # fraction of the population that is in the hidden popn (H)
                           p.H=.03,
-                          # prob of edge between two nodes in the same group
-                          pi.within=.05,
-                          # relative prob of edge between two nodes not in the same group
-                          rho=.1,
-                          tau=.5)
+                          # probability of being in F, conditional on being in H
+                          p.F.given.H=1,
+                          # prob of edge between two nodes in the same group 
+                          zeta=.05,
+                          # relative prob of edge between hidden and not hidden 
+                          rho=c(.5, .8, 1),
+                          # relative prob of edge between frame and not frame
+                          xi = 0.6,
+                          # sampling fraction for simple random sample w/out replacement from F
+                          frame.sampling.frac=.3,
+                          # sampling fraction for relative probability sample from H
+                          hidden.sampling.frac=.4,
+                          # true positive rate
+                          tau=.8)
+
+# add an id for each parameter combination
+sim.params$param.index <- 1:nrow(sim.params)
 
 ```
 
-Now draw the actual random graph.
-
-```{r}
-params <- sbm_params(sim.params, type="4group_1param_nested")
-this.g <- generate_graph(params)
-this.g.df <- get.data.frame(this.g, 'vertices')
-```
-
-Next, generate the reporting graph.
-
-(NB: right now, converting to a reporting graph is quite slow.)
-
-```{r}
-rep.params <- perfect_reporting()
-this.r <- reporting_graph(rep.params, this.g)
-```
-
-Then take a sample (but we'll just keep everything with a census).
-
+Next, we take our dataframe and turn it into a list of rows; then, for each
+entry in the list of rows, we call the function required to construct a
+simulation parameters object.
 
 ```{r}
 
-this.r.sample <- sample_graph(entire_census(), this.r)
-#this.r.sample <- sample_graph(frame_srs(params=list(sampling.frac=.1)), this.r)
+all.param.list <- split(sim.params, rownames(sim.params))
+
+# we would change 'type' if we wanted to use a different type of
+# simulation model -- for example, a one-parameter stochastic blockmodel with four groups
+all.param.list <- llply(all.param.list,
+                        sbm_params,
+                        type="4group_2param")
 
 ```
 
-Finally, produce estimates
+Now we conduct the actual simulation.
 
 ```{r}
 
-these.ests <- sbm_estimates(this.r.sample)
+## we'll repeat each set of parameter combinations this number of times
+## (small here to keep this reasonably fast; in practice, you probably want many more)
+num.sims <- 2
+
+sim.ests <- ldply(all.param.list,
+             function(these.sim.params) {
+
+                # construct an object containing the parameters that govern
+                # reporting (in our case, this will use our tau parameter to
+                # simulate false negatives)
+                rep.params <- imperfect_reporting(these.sim.params)
+
+                # construct an object containing the parameters that govern
+                # sampling from the frame population
+                frame.sample.params <- frame_srs(list(sampling.frac=
+                                                      these.sim.params$frame.sampling.frac))
+
+                # construct an object containing the parameters that govern
+                # sampling from the hidden population
+                hidden.sample.params <- hidden_relprob(list(sampling.frac=
+                                                            these.sim.params$hidden.sampling.frac,
+                                                            inclusion.trait='d.degree'))
+
+                this.N <- these.sim.params$N
+
+                ## this goes through each repetition for the parameter set we're on
+                these.res <- ldply(1:num.sims,
+                                   function(this.idx) {
+
+                                     # draw a random graph from the stochastic block model
+                                     this.g <- generate_graph(these.sim.params)
+
+                                     # use the reporting parameters to convert the
+                                     # undirected social network into a directed
+                                     # reporting graph
+                                     this.r <- reporting_graph(rep.params, this.g)
+
+                                     # get some quantities about the entire reporting graph
+                                     # from a census
+                                     census.df <- sample_graph(entire_census(), this.r)
+                                     #res <- sbm_census_quantities(census.df)
+
+                                     res <- list()
+
+                                     # get sample-based estimates from
+                                     # a sample of the frame population and a sample
+                                     # of the hidden population
+                                     frame.df <- sample_graph(frame.sample.params,
+                                                              this.r)
+                                     hidden.df <- sample_graph(hidden.sample.params,
+                                                               this.r)
+
+                                     # note that we will assume that the degrees
+                                     # are correct (ie, we are not simulating the
+                                     # known population method)
+                                     res$sample.y.F.H <- with(frame.df,
+                                                              sum((y.FH + y.notFH)*
+                                                                  sampling.weight))
+
+                                     res$sample.d.F.U <- with(frame.df,
+                                                              sum(d.degree*sampling.weight))
+
+                                     res$sample.dbar.F.F <- with(frame.df,
+                                                                 sum((d.FH + d.FnotH)*
+                                                                     sampling.weight)/
+                                                                 sum(sampling.weight))
+
+                                     res$sample.vbar.H.F <- with(hidden.df,
+                                                              sum((v.FnotH + v.FH)*
+                                                                  sampling.weight)/
+                                                              sum(sampling.weight))
+
+                                     res$sample.basic <- with(res,
+                                                              (sample.y.F.H / sample.d.F.U)*
+                                                              this.N)
+
+                                     res$sample.adapted <- with(res,
+                                                                sample.y.F.H / sample.dbar.F.F)
+
+                                     res$sample.generalized <- with(res,
+                                                                    sample.y.F.H / sample.vbar.H.F)
+
+                                     # for convenience, keep track of which rep this is
+                                     res$rep <- this.idx
+
+                                     return(data.frame(res))
+                                   })
+
+                ## for convenience, keep track of which parameter set this is
+                these.res$param.index <- these.sim.params$param.index
+
+                return(these.res)
+             })
 
 ```
 
-Also, get the expected values for this parameter combination
-
-TODO - should probably just use sbm_ev function now...
+Finally, summarize the results
 
 ```{r}
-params <- sbm_params(sim.params, type="4group_1param_nested")
 
-this.inF <- c(1,1,0,0)
-this.inH <- c(0,1,0,1)
-this.inU <- c(1,1,1,1)
+ci_low <- function(x) { quantile(x, .025, na.rm=TRUE) }
+ci_high <- function(x) { quantile(x, .975, na.rm=TRUE) }
 
-these.block.sizes <- params$block.sizes
-this.pref.matrix <- params$pref.matrix
-```
+sim.agg.byest <- sim.ests %>%
+                 group_by(param.index) %>%
+                 rename(basic=sample.basic, 
+                        adapted=sample.adapted, 
+                        generalized=sample.generalized) %>%
+                 summarise_each(funs(mean, ci_low, ci_high),
+                                basic, adapted, generalized) %>%
+                 gather(qty, value,
+                        matches("basic|adapted|generalized")) %>%
+                 separate(qty, c("estimator", "qty"), sep="\\_", extra="merge") %>%
+                 spread(qty, value)
 
-```{r}
+# merge in parameter values
+sim.params <- sim.params %>% mutate(N.H = p.H * N)
 
-eec.dbar.F.F <- function(pm, bs) {
-    eec <- expected.edgecount.4group(pm, bs, this.inF, this.inF)
-    return(2*eec / sum(bs*this.inF))
-}
-
-eec.dbar.F.U <- function(pm, bs) {
-    eec <- expected.edgecount.4group(pm, bs, this.inF, c(1,1,1,1))
-    return(2*eec / sum(bs*this.inF))
-}
-
-eec.dbar.U.F <- function(pm, bs) {
-    eec <- expected.edgecount.4group(pm, bs, c(1,1,1,1), this.inF)
-    return(2*eec / sum(bs))
-}
-
-eec.dbar.H.F <- function(pm, bs) {
-    eec <- expected.edgecount.4group(pm, bs, this.inH, this.inF)
-    return(2*eec / sum(bs*this.inH))
-}
+sim.agg.byest <- inner_join(sim.agg.byest, sim.params, by='param.index')
 
 ```
 
-```{r}
-this.N <- sum(these.block.sizes)
-this.N.F <- sum(these.block.sizes * this.inF)
+Plot the bias
 
-eec.dbar.F.F(this.pref.matrix, these.block.sizes)
+```{r, results='asis'}
 
-eec.dbar.F.U(this.pref.matrix, these.block.sizes)
+sim.agg.byest <- sim.agg.byest %>% mutate(bias = mean - N.H) 
 
-eec.dbar.U.F(this.pref.matrix, these.block.sizes)
+bias.tab <- sim.agg.byest %>% select(estimator, rho, bias) %>%
+                              spread(estimator, bias)
 
-## good, this works...
-(this.N/this.N.F)*eec.dbar.U.F(this.pref.matrix, these.block.sizes)
-
+kable(bias.tab)
 
 ```
 
-```{r}
 
-this.dbar.F.F <- eec.dbar.F.F(this.pref.matrix, these.block.sizes)
-this.dbar.U.F <- eec.dbar.U.F(this.pref.matrix, these.block.sizes)
-this.dbar.H.F <- eec.dbar.H.F(this.pref.matrix, these.block.sizes)
-
-this.phi.F <- this.dbar.F.F / this.dbar.U.F
-this.delta.F <- this.dbar.H.F / this.dbar.F.F
-
-```
