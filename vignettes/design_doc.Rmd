@@ -4,7 +4,7 @@ author: "Dennis Feehan"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{sbm-simulation}
+  %\VignetteIndexEntry{design_doc}
   %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
 ---
