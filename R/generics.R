@@ -7,7 +7,7 @@
 #'        should be generated
 #' @return the \code{igraph} object with the generated social network
 #' @export
-generate_graph <- function(params) {
+generate_graph <- function(params, ...) {
     UseMethod("generate_graph")
 }
 

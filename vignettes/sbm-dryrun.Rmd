@@ -1,0 +1,136 @@
+---
+title: "Dry run for scale-up simulation (no sampling)"
+author: ""
+#author: "Dennis Feehan"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{sbm-dryrun}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r, echo=FALSE, message=FALSE}
+library(igraph)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(devtools)
+library(gridExtra)
+load_all()
+
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, fig.width=12, fig.height=12)
+
+```
+
+
+## Simulation study: dry run
+
+This document is a dry run for the simulation study that is included as part
+of the generalized scale-up paper (TODO LINK).
+
+The plots below show the expected values of different estimators and parameters;
+it does not conduct any sampling.
+
+These plots show the expected results of the simulation
+bias in two different scale-up estimators
+under the two-parameter model when $\tau=1$ and $p_{F|H} = 1$.
+
+```{r}
+
+param.vals <- expand.grid(# size of total population, U
+                          N=10e3,
+                          # frame population is half of total
+                          p.F=c(.1, .5, 1),
+                          # hidden popn is 3 percent of total
+                          p.H=.03,
+                          # we'll assume all hidden popn members are in the frame popn
+                          p.F.given.H=1,
+                          # prob of edge between two nodes in the same group
+                          zeta=.05,
+                          # relative probability of edge between frame and not frame
+                          xi=0.4,
+                          # relative probability of edge between hidden and not hidden
+                          rho=seq(from=.1, to=1, by=.1),
+                          # true positive rate (1=accurate reports)
+                          tau=c(.1, .5, 1))
+
+all.param.list <- split(param.vals, rownames(param.vals))
+
+## get a list of parameter objects based on the 1 param/nested specification
+## now do the same for the two-param version
+all.param.list.twoparam <- llply(all.param.list,
+                                 sbm_params,
+                                 type="4group_2param")
+
+res.twoparam <- ldply(all.param.list.twoparam,
+                      sbm_ev)
+res.twoparam$type <- "twoparam"
+
+res <- res.twoparam
+
+res.nsum <- res %>% mutate(estimate=tau*d.F.H / dbar.U.F, 
+                           estimator="nsum.est")
+
+res.gnsum <- res %>% mutate(estimate=tau*d.F.H / (tau * dbar.H.F),
+                            estimator="generalized.est")
+
+res.both <- rbind(res.nsum, res.gnsum)
+res.both <- res.both %>% mutate(N.H = N*p.H)
+res.both <- res.both %>% mutate(bias = estimate - N.H)
+
+## give estimators nice labels
+res.both <- res.both %>% 
+            mutate(estimator.label=ifelse(estimator=="generalized", 
+                                                     "generalized scale-up",
+                                                     "basic scale-up"))
+
+```
+
+```{r, results='asis', fig.width=6, fig.height=10}
+
+toplot.bias.twoparam <- res.both
+
+#toplot.bias.twoparam <- res.both %>% 
+#                  filter(
+#                         # NA correspondes to p_{F|H} = p_F
+#                         #is.na(p.F.given.H),
+#                         dbl.in(p.F.given.H, 1),
+#                         #dbl.in(tau, res.vals),
+#                         dbl.in(tau, 1),
+#                         #dbl.in(rho, res.vals),
+#                         dbl.in(p.F, res.vals)
+#                         #dbl.in(xi, 0.6),
+#                         #dbl.in(xi, res.vals)
+#                         ) %>%
+#                  filter(type == "twoparam")
+
+#bias.twoparam <- ggplot(toplot.bias.twoparam) +
+#                  geom_line(aes(x=rho, y=abs(bias), 
+#                                color=estimator, 
+#                                group=estimator)) +
+#                  geom_hline(aes(yintercept=1), linetype=1, color="gray") +
+#                  facet_grid(tau  ~ p.F,
+#                             labeller = labeller(tau=label_bquote(tau == .(tau)),
+#                                                 p.F=label_bquote(p[F] == .(p.F)))) +
+#                  #facet_grid(xi  ~ p.F,
+#                  #           labeller = labeller(xi=label_bquote(xi == .(xi)),
+#                  #                               p.F=label_bquote(p[F] == .(p.F)))) +
+#                  xlab(bquote(amount~of~inhomogenous~mixing~(rho))) +
+#                  ylab(bquote(paste("|bias|"))) +
+#                  theme(legend.position="bottom",
+#                        axis.text.x=element_text(angle=90, vjust=0.5),
+#                        panel.border=element_rect(size=.5, fill=NA),
+#                        panel.background=element_blank(),
+#                        panel.grid.major=element_blank(),
+#                        panel.grid.minor=element_blank()) +
+#                  ggtitle(bquote(paste(tau, "=1, ", paste(p,'[F|H]'), "= 1")))
+
+#bias.twoparam
+
+```
+
+
+

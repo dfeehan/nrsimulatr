@@ -15,7 +15,7 @@ researchers experiment with network reporting methods through simulations.
 Conducting a network reporting simulation can be broken down into
 several steps:
 
-* generating a social network
+* generating a social network (or opening an existing social network)
 * generating a reporting network from the social network
 * sampling respondents
 * computing estimates
