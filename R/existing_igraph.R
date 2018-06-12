@@ -146,6 +146,7 @@ report_edges.existing_igraph <- function(g, prefix='d.', mode="all") {
   
   groups <- get.graph.attribute(g, 'groups')
   
+  
   ## go through and get reported connections to each block
   for (gp in groups) {
     
