@@ -1,4 +1,10 @@
 template:
   params:
+    ganalytics: G-MNBH4QHVYP
     bootswatch: flatly
-
+articles:
+- title: All vignettes
+  desc: ~
+  contents:
+  - '`sbm-simulation`'
+  # NB: ignore the other vignettes

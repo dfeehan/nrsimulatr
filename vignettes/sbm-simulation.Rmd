@@ -4,7 +4,7 @@ author: "Dennis Feehan"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{sbm-simulation}
+  %\VignetteIndexEntry{Stochastic block model network reporting simulation}
   %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
 ---
@@ -19,6 +19,8 @@ library(igraph)
 library(dplyr)
 library(tidyr)
 library(stringr)
+
+library(nrsimulatr)
 ```
 
 ## Two-parameter model
@@ -85,9 +87,9 @@ all.param.list <- split(sim.params, rownames(sim.params))
 
 # we would change 'type' if we wanted to use a different type of
 # simulation model -- for example, a one-parameter stochastic blockmodel with four groups
-all.param.list <- llply(all.param.list,
-                        sbm_params,
-                        type="4group_2param")
+all.param.list <- plyr::llply(all.param.list,
+                              sbm_params,
+                              type="4group_2param")
 
 ```
 
@@ -99,7 +101,7 @@ Now we conduct the actual simulation.
 ## (small here to keep this reasonably fast; in practice, you probably want many more)
 num.sims <- 2
 
-sim.ests <- ldply(all.param.list,
+sim.ests <- plyr::ldply(all.param.list,
              function(these.sim.params) {
 
                 # construct an object containing the parameters that govern
@@ -121,7 +123,7 @@ sim.ests <- ldply(all.param.list,
                 this.N <- these.sim.params$N
 
                 ## this goes through each repetition for the parameter set we're on
-                these.res <- ldply(1:num.sims,
+                these.res <- plyr::ldply(1:num.sims,
                                    function(this.idx) {
 
                                      # draw a random graph from the stochastic block model

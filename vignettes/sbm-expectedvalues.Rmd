@@ -4,10 +4,10 @@ author: ""
 #author: "Dennis Feehan"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{sbm-expectedvalues}
-  %\VignetteEngine{knitr::rmarkdown}
-  \usepackage[utf8]{inputenc}
+#vignette: >
+#  %\VignetteIndexEntry{Explore expected values for stochastic block-model simulations}
+#  %\VignetteEngine{knitr::rmarkdown}
+#  \usepackage[utf8]{inputenc}
 ---
 
 ```{r, echo=FALSE, message=FALSE}

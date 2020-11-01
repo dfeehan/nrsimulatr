@@ -1,18 +1,22 @@
 ---
-title: "Stochastic block model network reporting simulation"
+title: "Scratch"
 author: "Dennis Feehan"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{sbm-simulation}
-  %\VignetteEngine{knitr::rmarkdown}
-  \usepackage[utf8]{inputenc}
+#vignette: >
+#  %\VignetteIndexEntry{Scratch}
+#  %\VignetteEngine{knitr::rmarkdown}
+#  \usepackage[utf8]{inputenc}
 ---
 
 
 ```{r}
 library(knitr)
 opts_chunk$set(eval=FALSE)
+# don't include this vignette in pkgdown site
+# see https://github.com/r-lib/pkgdown/issues/457
+knitr::opts_chunk$set(eval = FALSE)
+
 ```
 
 ```{r}

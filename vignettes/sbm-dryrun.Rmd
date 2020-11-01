@@ -4,13 +4,18 @@ author: ""
 #author: "Dennis Feehan"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{sbm-dryrun}
-  %\VignetteEngine{knitr::rmarkdown}
-  \usepackage[utf8]{inputenc}
+#vignette: >
+#  %\VignetteIndexEntry{Dry run for scale-up simulation (no sampling)}
+#  %\VignetteEngine{knitr::rmarkdown}
+#  \usepackage[utf8]{inputenc}
 ---
 
+
 ```{r, echo=FALSE, message=FALSE}
+# don't include this vignette in pkgdown site
+# see https://github.com/r-lib/pkgdown/issues/457
+knitr::opts_chunk$set(eval = FALSE)
+
 library(igraph)
 library(plyr)
 library(dplyr)
