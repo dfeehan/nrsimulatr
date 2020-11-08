@@ -1,6 +1,7 @@
 template:
   params:
-    ganalytics: G-MNBH4QHVYP
+    #ganalytics: G-MNBH4QHVYP
+    ganalytics: G-EG7VL6DQ9E
     bootswatch: flatly
 articles:
 - title: All vignettes
