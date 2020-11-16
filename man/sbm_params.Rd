@@ -17,4 +17,3 @@ an object with the simulation parameters
 \description{
 create a set of simulation parameters for the stochastic block model
 }
-

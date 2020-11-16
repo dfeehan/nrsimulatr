@@ -23,4 +23,3 @@ which is a list with parameters describing the simulation.
 For now, the only simulation parameter that makes a difference is
 \eqn{\tau}.
 }
-

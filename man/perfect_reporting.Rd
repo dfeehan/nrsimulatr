@@ -20,4 +20,3 @@ correspond to perfect reporting.
 For now, the only simulation parameter that makes a difference is
 \eqn{\tau}.
 }
-

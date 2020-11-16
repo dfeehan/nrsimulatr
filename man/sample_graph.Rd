@@ -20,4 +20,3 @@ this is a generic function to generate a dataset with information
 from a sample of nodes in a reporting graph or social network.
 the parameters describe how the sample is obtained.
 }
-

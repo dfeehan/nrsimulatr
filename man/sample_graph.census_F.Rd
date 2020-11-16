@@ -18,4 +18,3 @@ a dataset made from all of the nodes in F
 \description{
 Get dataset from a census of F in reporting graph
 }
-

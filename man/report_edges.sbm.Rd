@@ -50,4 +50,3 @@ about each block. If we have three blocks, A, B, and C, then in the
 graph that \code{report.sbm.edges} returns, each vertex will have
 four new attributes: \code{y.degree}, \code{y.A}, \code{y.B}, and \code{y.C}.
 }
-

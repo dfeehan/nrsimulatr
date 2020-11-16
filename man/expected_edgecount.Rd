@@ -13,4 +13,3 @@ determines which method gets run)}
 \description{
 generic function for getting expected edgecounts
 }
-

@@ -19,4 +19,3 @@ a list; block.sizes has a vector whose names are block names, values are block s
 given the parameter values N, p.H, and p.F, compute the number of vertices
 in each of the four blocks: FnotH, FH, notFnotH, notFH
 }
-

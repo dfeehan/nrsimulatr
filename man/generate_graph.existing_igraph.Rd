@@ -17,4 +17,3 @@ indicated by in.F and in.H
 Given an existing igraph object, add attributes for the frame
 population and for the hidden population.
 }
-

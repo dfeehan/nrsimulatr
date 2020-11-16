@@ -16,4 +16,3 @@ sbm_label_vertices(graph, block.sizes, block.names)
 \description{
 assign labels to vertices in a graph
 }
-

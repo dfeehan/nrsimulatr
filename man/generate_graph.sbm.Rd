@@ -27,4 +27,3 @@ the stochastic block-model. The vertices each have a 'group' attribute
 containing the name of the block they have been assigned to. These block
 names default to 'group.1', 'group.2', ... if none are specified.
 }
-

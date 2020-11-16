@@ -4,7 +4,7 @@
 \alias{sbm_pref_matrix.4group_1param_simple}
 \title{construct a 4-block preference matrix based on two independent categories, simple}
 \usage{
-\method{sbm_pref_matrix}{4group_1param_simple}(params)
+\method{sbm_pref_matrix}{`4group_1param_simple`}(params)
 }
 \arguments{
 \item{list}{of parameters, including block.sizes, zeta and rho}
@@ -15,4 +15,3 @@ a 4x4 preference matrix
 \description{
 TODO
 }
-

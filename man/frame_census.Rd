@@ -15,4 +15,3 @@ a reporting parameter object
 \description{
 This creates an object of class 'census_F'
 }
-

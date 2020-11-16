@@ -16,4 +16,3 @@ the \code{igraph} object with the generated social network
 \description{
 this is a generic function to generate a social network
 }
-

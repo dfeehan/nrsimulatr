@@ -17,4 +17,3 @@ a named vector; names are block names, values are block sizes
 given the parameter values of a stochastic block model, return a named
 list of the block sizes
 }
-

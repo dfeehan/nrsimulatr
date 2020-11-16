@@ -4,8 +4,12 @@
 \alias{sbm_ev.sbm_4group}
 \title{compute the expected value for various quantities under four-group model}
 \usage{
-\method{sbm_ev}{sbm_4group}(params, inF = c("FnotH", "FH"), inH = c("FH",
-  "notFH"), inU = c("FnotH", "FH", "notFnotH", "notFH"))
+\method{sbm_ev}{sbm_4group}(
+  params,
+  inF = c("FnotH", "FH"),
+  inH = c("FH", "notFH"),
+  inU = c("FnotH", "FH", "notFnotH", "notFH")
+)
 }
 \arguments{
 \item{params}{list/object containing the simulation parameters}
@@ -22,4 +26,3 @@ the expected value of various quantities
 \description{
 compute the expected value for various quantities under four-group model
 }
-

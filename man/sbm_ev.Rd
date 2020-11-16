@@ -12,4 +12,3 @@ sbm_ev(params, ...)
 \description{
 generic fn for getting expected values from stochastic block model
 }
-

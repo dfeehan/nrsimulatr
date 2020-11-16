@@ -17,4 +17,3 @@ a dataset made from a simple random sample of the nodes in F
 \description{
 Get dataset from a relative probability sample of H in reporting graph
 }
-

@@ -17,4 +17,3 @@ the \code{igraph} object with the generated social network
 this is a generic function to generate a reporting graph from
 reporting parameters and a social network
 }
-

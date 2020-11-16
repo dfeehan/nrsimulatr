@@ -16,4 +16,3 @@ the \code{igraph} object with the generated social network
 this is a generic function to report edges from a social network or
 a reporting graph
 }
-

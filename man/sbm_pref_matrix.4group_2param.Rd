@@ -5,7 +5,7 @@
 \title{construct a 4-block preference matrix based on two independent categories,
 and two independent interaction parameters}
 \usage{
-\method{sbm_pref_matrix}{4group_2param}(params)
+\method{sbm_pref_matrix}{`4group_2param`}(params)
 }
 \arguments{
 \item{list}{of parameters, including block.sizes, zeta, rho, xi, gps.in.F, and gps.in.H}
@@ -16,4 +16,3 @@ a 4x4 preference matrix
 \description{
 TODO
 }
-

@@ -17,4 +17,3 @@ a reporting parameter object
 This creates an object of class 'relprobsample_H', which has a relative
 probability sample of H without replacement
 }
-

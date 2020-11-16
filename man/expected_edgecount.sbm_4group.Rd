@@ -24,4 +24,3 @@ for groups A and B, this returns \eqn{d_{A,B} = d_{B,A}}.
 it does not matter how the preference matrix and block sizes were generated,
 so this function could be used with many different models.
 }
-

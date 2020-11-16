@@ -19,7 +19,7 @@ population and for the hidden population.
 \details{
 The \code{params} vector should have at least three entries:
 \itemize{
-\item \code{group.names} is a vector that has a list of attributes that
+\item \code{groups} is a vector that has a list of attributes that
 each node in the \code{igraph} object \code{g} has. These attributes
 should all have values of 0/1 or TRUE/FALSE.
 \item \code{gps.in.F} is a vector that has a list of group names; nodes in
@@ -33,4 +33,3 @@ my_params <- existing_params(list(group.names=c('a', 'b', 'c', 'd'),
                                   gps.in.F=c('b', 'c'),
                                   gps.in.H=c('a', 'b')))
 }
-

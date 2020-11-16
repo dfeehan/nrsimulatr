@@ -17,4 +17,3 @@ This creates an object of class 'srs_F', which has a simple
 random sample without replacement of the frame population nodes
 (NB: Sarndal et al call this SI sampling)
 }
-

@@ -53,4 +53,3 @@ same group tend to form ties with one another more than with others.
 And when rho is greater than 1, members of the same group tend to
 form ties with others more than with one another.
 }
-

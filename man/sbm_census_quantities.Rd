@@ -20,4 +20,3 @@ note that this code relies upon the fact that the vertices should have
 two 0/1 attributes, in.H and in.F, which indicate whether or not each one
 is in the hidden population and the frame population
 }
-

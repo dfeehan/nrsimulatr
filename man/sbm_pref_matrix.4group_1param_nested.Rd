@@ -4,7 +4,7 @@
 \alias{sbm_pref_matrix.4group_1param_nested}
 \title{construct a 4-block preference matrix based on two independent categories, nested}
 \usage{
-\method{sbm_pref_matrix}{4group_1param_nested}(params)
+\method{sbm_pref_matrix}{`4group_1param_nested`}(params)
 }
 \arguments{
 \item{list}{of parameters, including block.sizes, zeta, rho, gps.in.F, and gps.in.H}
@@ -15,4 +15,3 @@ a 4x4 preference matrix
 \description{
 TODO
 }
-
