@@ -10,7 +10,7 @@
 #' @name nrsimulatr
 #'
 #' @importFrom Rcpp sourceCpp
-#' @import igraph plyr dplyr tidyr stringr
+#' @import igraph dplyr tidyr stringr
 NULL
 
 
