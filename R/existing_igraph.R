@@ -173,38 +173,22 @@ report_edges.existing_igraph <- function(g, prefix='d.', mode="all") {
 ###############################################################################
 #' for each vertex, create detailed reports by returning edge information 
 #'
-#' TODO - BELOW NOT YET EDITED
-#' If this function is called on an undirected social network graph (with mode='all'),
-#' then it counts the true number of social connections between each node and
-#' the various blocks.
-#'
-#' On the other hand, if this function is called on a directed reporting graph,
-#' then it computes the reported number of social connections (with mode='in')
-#' or visibility (with mode='out').
+#' Return all of the edges that would be reported by each node in the graph
 #'
 #' @details
 #' 
-#' This function is useful for computing edge counts (i.e. ARD)
-#' between
-#' individual vertices and the blocks. These edge counts are the building
-#' blocks of many network reporting estimators.
+#' This function is useful for computing deatiled edge reports 
+#' between individual vertices and their alters. 
+#' These edge reports are the building blocks of many network reporting 
+#' estimators.
 #' 
-#' Note that, counter-intuitively, mode="in" will compute out-reports and
-#' mode="out" will compute in-reports. This is the \code{igraph} convention.
-#' For undirected graphs (for example, when computing degrees in the social
-#' network), use "all".
+#' TODO - we might be able to remove the \code{mode} argument - not sure it
+#' is needed here
 #' 
-#' For example, if the prefix is "y." and the mode is "in", we are asking
-#' \code{report.sbm.edges} to count each vertex's number of out-reports
-#' about each block. If we have three blocks, A, B, and C, then in the
-#' graph that \code{report.sbm.edges} returns, each vertex will have
-#' four new attributes: \code{y.degree}, \code{y.A}, \code{y.B}, and \code{y.C}.
-#'
 #' @param g the \code{igraph} object
-#' @param prefix the prefix to use in the variable names that are attached
-#'        (useful if this function will be used to compute reports more than once)
+#' @param prefix the prefix to use in the variable names that come from the alters
 #' @param mode one of "all", "in", or "out". see Details
-#' @return the \code{igraph} object with new attributes affixed to each vertex
+#' @return a \code{tibble} object with each reported edge
 #'         (see Details)
 #' @export
 report_detailed_edges.existing_igraph <- function(g, prefix='d.', mode="all") {
@@ -212,34 +196,24 @@ report_detailed_edges.existing_igraph <- function(g, prefix='d.', mode="all") {
   # compute the degree of each vertex
   # note that for undirected graphs, mode='out' has no effect; this just
   # returns the degree
-  g <- set.vertex.attribute(g, paste0(prefix, 'degree'), value=degree(g, mode=mode))
+  #g <- set.vertex.attribute(g, 
+  #                          paste0('degree'), 
+  #                          value=degree(g, mode=mode))
   
-  adj.matrix <- get.adjacency(g)
+  res_df_ev <- igraph::as_data_frame(g, what = 'both')
   
-  groups <- get.graph.attribute(g, 'groups')
+  # NOTE: if there are isolates (vertices with no incident edges),
+  # then they would not get recorded here...
   
+  res_df <- res_df_ev$edges %>% 
+    # TODO - may eventually want to handle cases where the ids can
+    # have different values
+    rename(name=from, alter_id=to) %>%
+    # join ego's attributes
+    left_join(res_df_ev$vertices) %>%
+    left_join(res_df_ev$vertices %>% 
+                rename_with(~ paste0(prefix, .x), everything()),
+                by=c('alter_id'=paste0(prefix, 'name')))
   
-  ## go through and get reported connections to each block
-  for (gp in groups) {
-    
-    in.gp <- as.numeric(get.vertex.attribute(g, gp)) 
-    
-    res.name <- paste0(prefix, gp)
-    
-    if (mode=='out') {
-      # in this case, we want visibilities
-      # which are A^T x; we'll compute them via
-      # we'll compute x^T A instead
-      num.rep.conns <- as.numeric(t(in.gp) %*% adj.matrix)
-    } else {
-      num.rep.conns <- as.numeric(adj.matrix %*% in.gp)
-    }
-    
-    g <- set.vertex.attribute(g, 
-                              res.name,
-                              value=num.rep.conns)
-  }
-  
-  return(g)
-  
+  return(res_df)
 }

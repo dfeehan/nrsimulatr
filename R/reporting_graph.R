@@ -124,7 +124,7 @@ reporting_graph.imperfect_reporting <- function(reporting.params, sim.graph) {
 #'
 #' @param reporting.params the reporting parameters
 #' @param sim.graph the \code{igraph} object with the social network
-#' @return the \code{igraph} object for the directed reporting graph 
+#' @return the \code{tibble} object with rows for the directed reporting graph 
 #' @export
 reporting_graph_detailed.imperfect_reporting <- function(reporting.params, sim.graph) {
   
@@ -162,12 +162,9 @@ reporting_graph_detailed.imperfect_reporting <- function(reporting.params, sim.g
   ##
   # count up the reports in the reporting graph: 
   # ... out-reports (y)
-  rep.graph <- report_edges(rep.graph, prefix='y.', mode="in")    
+  rep.graph.df <- report_detailed_edges(rep.graph, prefix='out_nbr.', mode="in")    
   
-  # ... in-reports (v)
-  rep.graph <- report_edges(rep.graph, prefix='v.', mode="out")    
-  
-  return(rep.graph)
+  return(rep.graph.df)
   
 }
 
